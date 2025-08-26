@@ -1,0 +1,35 @@
+# GitHub Pages configuration for RENT-A-SOFT-SA
+title: RENT-A-SOFT-SA
+description: Organización dedicada al desarrollo de software y soluciones tecnológicas
+url: "https://rent-a-soft-sa.github.io"
+baseurl: ""
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+theme: minima
+
+# Exclude files from processing
+exclude:
+  - README.md
+  - EDITING_GUIDE.md
+  - .gitignore
+  - .git/
+
+# Site configuration
+lang: es
+timezone: America/Argentina/Buenos_Aires
+
+# Organization info
+organization:
+  name: RENT-A-SOFT-SA
+  github: https://github.com/RENT-A-SOFT-SA
+
+# Page defaults
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"
+      author: "RENT-A-SOFT-SA"
