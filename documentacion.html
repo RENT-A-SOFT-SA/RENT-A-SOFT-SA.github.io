@@ -53,44 +53,38 @@
         const documentationCatalog = [
             {
                 product: 'MrTurno',
-                description: 'Soluciones de reservas y administración de turnos.',
+                description: 'Gestion de turnos, usuarios, pacientes y notificaciones.',
                 apis: [
                     {
-                        id: 'mrturno-rest',
-                        name: 'API REST para desarrolladores',
-                        summary: 'Endpoints REST para gestionar sucursales, servicios y turnos en tiempo real.',
+                        id: 'mrturno-api-desarrolladores',
+                        name: 'API de Desarrolladores MrTurno 5',
+                        summary: 'Documentación completa con autenticación JWT RS256, endpoints por módulo y flujos recomendados.',
                         format: 'md',
-                        path: 'docs/mt_api_dev/overview.md'
+                        path: 'docs/mt_api_dev/mrturno-api-desarrolladores.md'
                     },
                     {
-                        id: 'mrturno-reference',
-                        name: 'Referencia HTML completa',
-                        summary: 'Documento HTML con el detalle de atributos, ejemplos y códigos de respuesta.',
-                        format: 'html',
-                        path: 'docs/mt_api_dev/index.html'
-                    }
-                ]
-            },
-            {
-                product: 'Analytics Suite',
-                description: 'Plataforma de métricas y tableros multi-producto.',
-                apis: [
-                    {
-                        id: 'analytics-metrics',
-                        name: 'API de Métricas',
-                        summary: 'Consulta indicadores agregados y series temporales para tableros de negocio.',
+                        id: 'mrturno-notificaciones-multiples',
+                        name: 'API Notificaciones Múltiples',
+                        summary: 'Integración de recordatorios y confirmaciones de turnos vía notificaciones externas.',
                         format: 'md',
-                        path: 'docs/analytics/metrics.md'
+                        path: 'docs/mt_api_dev/api-dev-notificaciones-multiples-mrturno.md'
                     },
-                    {
-                        id: 'analytics-auth',
-                        name: 'Guía de autenticación',
-                        summary: 'Pasos para generar tokens OAuth 2.0 y asegurar tus integraciones.',
-                        format: 'html',
-                        path: 'docs/analytics/auth.html'
-                    }
                 ]
             }
+            // Para agregar un nuevo producto, agrega aquí una nueva entrada:
+            // {
+            //     product: 'Mi Nuevo Producto',
+            //     description: 'Descripción del producto.',
+            //     apis: [
+            //         {
+            //             id: 'mi-api-docs',
+            //             name: 'Documentación de Mi API',
+            //             summary: 'Guía completa para integrar Mi API.',
+            //             format: 'md',
+            //             path: 'docs/mi_producto/guia.md'
+            //         }
+            //     ]
+            // }
         ];
 
         const catalogContainer = document.getElementById('docs-catalog');

@@ -152,7 +152,7 @@
 }
 
 .catalog-item:hover {
-    background-color: #fdf8f3;
+    background-color: #c18f5c;
     border-color: rgba(79, 33, 10, 0.35);
 }
 
@@ -202,6 +202,8 @@
     display: flex;
     flex-direction: column;
     min-height: 70vh;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .viewer-toolbar {
@@ -275,9 +277,13 @@
 .viewer-content {
     padding: 2rem;
     overflow-y: auto;
+    overflow-x: hidden;
     flex: 1;
     line-height: 1.7;
     font-size: 0.97rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
 }
 
 .viewer-content h1,
@@ -295,6 +301,9 @@
     border-radius: 12px;
     overflow-x: auto;
     font-size: 0.9rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-width: 100%;
 }
 
 .viewer-content code {
@@ -302,11 +311,15 @@
     background-color: rgba(15, 23, 42, 0.08);
     padding: 0.15rem 0.4rem;
     border-radius: 6px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .viewer-content pre code {
     background: none;
     padding: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
 }
 
 .viewer-content table {
@@ -330,6 +343,36 @@
 .viewer-content ul,
 .viewer-content ol {
     margin: 1rem 0 1rem 1.25rem;
+}
+
+/* Reglas adicionales para manejo de overflow y contenido largo */
+.viewer-content {
+    /* Manejo de URLs y texto largo */
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    -ms-hyphens: auto;
+}
+
+.viewer-content a {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-all;
+}
+
+.viewer-content p,
+.viewer-content li {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.viewer-content blockquote {
+    margin: 1.5rem 0;
+    padding-left: 1rem;
+    border-left: 4px solid #e5e7eb;
+    color: #6b7280;
+    font-style: italic;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .empty-state {
@@ -356,11 +399,23 @@
 @media (max-width: 1024px) {
     .docs-layout {
         grid-template-columns: 1fr;
+        gap: 1.5rem;
+        padding: clamp(1rem, 3vw, 2rem);
     }
 
     .docs-sidebar {
         position: static;
         max-height: none;
+        margin-bottom: 1rem;
+    }
+    
+    .catalog-group {
+        margin-bottom: 1rem;
+    }
+    
+    .api-item {
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
     }
 }
 
@@ -675,10 +730,61 @@
     margin: 0;
 }
 
+/* ==============================
+   Media Queries Responsive
+   ============================== */
+
+/* Tablet - hasta 1024px */
+@media (max-width: 1024px) {
+    .content-grid {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .hero-title {
+        font-size: 2.5rem;
+    }
+    
+    .hero-description {
+        font-size: 1.1rem;
+    }
+}
+
+/* Móvil grande - hasta 768px */
 @media (max-width: 768px) {
+    .docs-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1rem clamp(1rem, 3vw, 2rem);
+    }
+    
+    .docs-nav {
+        width: 100%;
+        justify-content: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .docs-nav a {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+    
     .hero-section,
     .hero-section-full {
-        padding: 2.5rem 1rem;
+        padding: 2rem 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .hero-title {
+        font-size: 2rem;
+        line-height: 1.2;
+    }
+    
+    .hero-description {
+        font-size: 1rem;
+        line-height: 1.6;
     }
     
     .main-content {
@@ -688,17 +794,230 @@
     .content-grid {
         grid-template-columns: 1fr;
         gap: 1.5rem;
+        margin-bottom: 2rem;
     }
     
-    .contact-content {
+    .content-card {
+        padding: 1.5rem;
+    }
+    
+    .card-icon {
+        font-size: 2.5rem;
+    }
+    
+    .modern-btn {
+        padding: 0.75rem 1.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .brand-title {
+        font-size: 1.5rem;
+    }
+    
+    .brand-label {
+        font-size: 0.8rem;
+    }
+}
+
+/* Mejoras generales para todos los tamaños */
+* {
+    box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+    /* Prevenir overflow horizontal */
+    * {
+        max-width: 100%;
+    }
+    
+    /* Mejorar legibilidad en móviles */
+    body {
+        overflow-x: hidden;
+    }
+    
+    /* Asegurar que las imágenes sean responsive */
+    img {
+        max-width: 100%;
+        height: auto;
+    }
+    
+    /* Mejorar tablas en móviles */
+    table {
+        width: 100%;
+        overflow-x: auto;
+        display: block;
+        white-space: nowrap;
+    }
+    
+    /* Mejorar código en móviles */
+    pre, code {
+        overflow-x: auto;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+    }
+}
+
+/* Móvil pequeño - hasta 480px */
+@media (max-width: 480px) {
+    .docs-header {
         padding: 1rem;
     }
     
-    .contact-grid {
-        grid-template-columns: 1fr;
+    .docs-brand {
+        gap: 0.75rem;
     }
     
-    .info-sections {
-        grid-template-columns: 1fr;
+    .brand-accent {
+        width: 3px;
+        height: 40px;
+    }
+    
+    .brand-title {
+        font-size: 1.25rem;
+        line-height: 1.3;
+    }
+    
+    .brand-label {
+        font-size: 0.75rem;
+    }
+    
+    .docs-nav {
+        gap: 0.5rem;
+    }
+    
+    .docs-nav a {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+    }
+    
+    .hero-section,
+    .hero-section-full {
+        padding: 1.5rem 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .hero-title {
+        font-size: 1.75rem;
+        margin-bottom: 1rem;
+    }
+    
+    .hero-description {
+        font-size: 0.95rem;
+    }
+    
+    .main-content {
+        padding: 0 0.75rem;
+    }
+    
+    .content-card {
+        padding: 1.25rem;
+    }
+    
+    .content-card h3 {
+        font-size: 1.1rem;
+    }
+    
+    .content-card p {
+        font-size: 0.9rem;
+    }
+    
+    .card-icon {
+        font-size: 2rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .modern-btn {
+        width: 100%;
+        padding: 0.75rem;
+        font-size: 0.9rem;
+        text-align: center;
+    }
+    
+    .schedule-list li {
+        font-size: 0.9rem;
+        padding: 0.5rem 0;
+    }
+    
+    .process-list li {
+        font-size: 0.9rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .faq-item {
+        margin-bottom: 1rem;
+    }
+    
+    .faq-item strong {
+        font-size: 0.95rem;
+    }
+    
+    .faq-item p {
+        font-size: 0.85rem;
+    }
+    
+    .docs-footer {
+        padding: 1.5rem;
+        text-align: center;
+    }
+    
+    .docs-footer p {
+        font-size: 0.85rem;
+    }
+    
+    /* Documentación página específica */
+    .docs-layout {
+        padding: 1rem 0.75rem;
+        gap: 1rem;
+    }
+    
+    .docs-sidebar {
+        padding: 1rem;
+    }
+    
+    .sidebar-intro h2 {
+        font-size: 1rem;
+    }
+    
+    .sidebar-intro p {
+        font-size: 0.85rem;
+    }
+    
+    .catalog-group h3 {
+        font-size: 0.9rem;
+    }
+    
+    .api-item {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+    }
+    
+    .viewer-content {
+        padding: 1rem;
+    }
+    
+    .viewer-toolbar {
+        padding: 0.75rem 1rem;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+    
+    .upload-btn {
+        width: 100%;
+        justify-content: center;
+        font-size: 0.85rem;
+        padding: 0.75rem;
+    }
+    
+    .viewer-meta {
+        padding: 0.75rem 1rem;
+    }
+    
+    .viewer-meta h2 {
+        font-size: 1.1rem;
+    }
+    
+    .viewer-meta p {
+        font-size: 0.85rem;
     }
 }
