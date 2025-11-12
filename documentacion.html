@@ -1,65 +1,277 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Documentación de APIs y Sistemas</title>
+    <title>Centro de Documentación | RENT-A-SOFT-SA</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
-
-<body>
-    <!-- Mobile sidebar toggle button -->
-    <button class="sidebar-toggle" aria-label="Toggle navigation">☰</button>
-    <!-- Left Sidebar Navigation -->
-    <nav class="sidebar">
-        <div class="sidebar-header">
-            <h2>RENT-A-SOFT-SA</h2>
-        </div>
-        <div class="sidebar-nav">
-            <ul>
-                <li><a href="index.html">Inicio</a></li>
-                <li><a href="contact.html">Contacto</a></li>
-                <li><a href="documentacion.html" class="active">Documentación APIs</a></li>
-            </ul>
-        </div>
-    </nav>
-    <header>
-        <nav>
-            <div class="nav-container">
-                <ul class="nav-menu">
-                    <li><a href="index.html" class="nav-link">Inicio</a></li>
-                    <li><a href="contact.html" class="nav-link">Contacto</a></li>
-                    <li><a href="documentacion.html" class="nav-link active">Documentación APIs</a></li>
-                </ul>
+<body class="docs-body">
+    <header class="docs-header">
+        <div class="docs-brand">
+            <span class="brand-accent"></span>
+            <div>
+                <p class="brand-label">RENT-A-SOFT-SA</p>
+                <h1 class="brand-title">Centro de Documentación</h1>
             </div>
+        </div>
+        <nav class="docs-nav">
+            <a href="index.html">Inicio</a>
+            <a href="contact.html">Contacto</a>
         </nav>
     </header>
 
-    <main>
-        <section class="page-header">
-            <div class="container">
-                <h1>Documentación</h1>
-                <p>Bienvenido a la sección de documentación de APIs y sistemas de RENT-A-SOFT-SA.</p>
+    <main class="docs-layout">
+        <aside class="docs-sidebar" aria-label="Listado de productos y APIs">
+            <div class="sidebar-intro">
+                <h2>Biblioteca técnica</h2>
+                <p>Explora nuestras APIs organizadas por producto y accede a su documentación oficial.</p>
             </div>
-        </section>
-        <section class="page-content doc-index">
-            <div class="container">
-                <h2>Documentación de APIs y Sistemas</h2>
-                <p>Selecciona la documentación que deseas consultar:</p>
-                <ul>
-                    <li><a href="docs/mt_api_dev/index.html">API Desarrolladores de MrTurno</a></li>
-                    <!-- Agrega aquí más APIs o sistemas -->
-                </ul>
+            <div id="docs-catalog" class="catalog"></div>
+        </aside>
+
+        <section class="docs-viewer" aria-label="Visor de documentación">
+            <div class="viewer-toolbar">
+                <div>
+                    <p class="viewer-label">Documento activo</p>
+                    <h2 id="viewer-title">Selecciona una API para comenzar</h2>
+                </div>
+                <label class="upload-btn">
+                    Cargar archivo local
+                    <input type="file" id="local-doc" accept=".md,.markdown,.html,.htm">
+                </label>
             </div>
+            <div id="viewer-meta" class="viewer-meta"></div>
+            <article id="doc-content" class="viewer-content">
+                <p class="empty-state">Elige un elemento del listado o carga un archivo <code>.md</code>/<code>.html</code> para visualizarlo aquí.</p>
+            </article>
         </section>
     </main>
-    <footer>
-        <div class="container">
-            <p>&copy; 2024 RENT-A-SOFT-SA. Todos los derechos reservados.</p>
-        </div>
-    </footer>
-    <script src="sidebar.js"></script>
-</body>
 
+    <footer class="docs-footer">
+        <p>&copy; 2024 RENT-A-SOFT-SA. Documentación centralizada para equipos y partners.</p>
+    </footer>
+
+    <script>
+        const documentationCatalog = [
+            {
+                product: 'MrTurno',
+                description: 'Soluciones de reservas y administración de turnos.',
+                apis: [
+                    {
+                        id: 'mrturno-rest',
+                        name: 'API REST para desarrolladores',
+                        summary: 'Endpoints REST para gestionar sucursales, servicios y turnos en tiempo real.',
+                        format: 'md',
+                        path: 'docs/mt_api_dev/overview.md'
+                    },
+                    {
+                        id: 'mrturno-reference',
+                        name: 'Referencia HTML completa',
+                        summary: 'Documento HTML con el detalle de atributos, ejemplos y códigos de respuesta.',
+                        format: 'html',
+                        path: 'docs/mt_api_dev/index.html'
+                    }
+                ]
+            },
+            {
+                product: 'Analytics Suite',
+                description: 'Plataforma de métricas y tableros multi-producto.',
+                apis: [
+                    {
+                        id: 'analytics-metrics',
+                        name: 'API de Métricas',
+                        summary: 'Consulta indicadores agregados y series temporales para tableros de negocio.',
+                        format: 'md',
+                        path: 'docs/analytics/metrics.md'
+                    },
+                    {
+                        id: 'analytics-auth',
+                        name: 'Guía de autenticación',
+                        summary: 'Pasos para generar tokens OAuth 2.0 y asegurar tus integraciones.',
+                        format: 'html',
+                        path: 'docs/analytics/auth.html'
+                    }
+                ]
+            }
+        ];
+
+        const catalogContainer = document.getElementById('docs-catalog');
+        const viewerTitle = document.getElementById('viewer-title');
+        const viewerMeta = document.getElementById('viewer-meta');
+        const docContent = document.getElementById('doc-content');
+        const localDocInput = document.getElementById('local-doc');
+        let activeButton = null;
+
+        function createCatalog() {
+            documentationCatalog.forEach(group => {
+                const section = document.createElement('section');
+                section.className = 'catalog-group';
+
+                const header = document.createElement('header');
+                header.className = 'catalog-group__header';
+                header.innerHTML = `
+                    <h3>${group.product}</h3>
+                    <p>${group.description}</p>
+                `;
+                section.appendChild(header);
+
+                const list = document.createElement('div');
+                list.className = 'catalog-group__items';
+
+                group.apis.forEach(api => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'catalog-item';
+                    button.dataset.path = api.path;
+                    button.dataset.format = api.format;
+                    button.dataset.product = group.product;
+                    button.dataset.name = api.name;
+                    button.dataset.summary = api.summary;
+                    button.dataset.id = api.id;
+                    button.innerHTML = `
+                        <span class="catalog-item__title">${api.name}</span>
+                        <span class="catalog-item__summary">${api.summary}</span>
+                        <span class="catalog-item__format">${api.format.toUpperCase()}</span>
+                    `;
+                    button.addEventListener('click', () => {
+                        loadDocumentation(api, group.product, button);
+                        updateQueryString(api.id);
+                    });
+                    list.appendChild(button);
+                });
+
+                section.appendChild(list);
+                catalogContainer.appendChild(section);
+            });
+        }
+
+        function updateQueryString(id) {
+            const params = new URLSearchParams(window.location.search);
+            params.set('doc', id);
+            const query = params.toString();
+            if (history.replaceState) {
+                history.replaceState(null, '', `${window.location.pathname}?${query}`);
+            }
+        }
+
+        function loadDocumentation(api, productName, buttonElement, isInitialLoad = false) {
+            if (!isInitialLoad) {
+                docContent.innerHTML = '<p class="loading">Cargando documentación…</p>';
+            }
+            viewerTitle.textContent = api.name;
+            viewerMeta.innerHTML = `
+                <span class="meta-item">${productName}</span>
+                <span class="meta-item">Formato ${api.format.toUpperCase()}</span>
+            `;
+
+            fetch(api.path)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('No se pudo obtener el archivo solicitado.');
+                    }
+                    return response.text();
+                })
+                .then(rawContent => {
+                    if (api.format === 'md' || api.path.endsWith('.md') || api.path.endsWith('.markdown')) {
+                        docContent.innerHTML = marked.parse(rawContent);
+                    } else {
+                        const parser = new DOMParser();
+                        const parsed = parser.parseFromString(rawContent, 'text/html');
+                        docContent.innerHTML = parsed.body ? parsed.body.innerHTML : rawContent;
+                    }
+                })
+                .catch(error => {
+                    docContent.innerHTML = `<p class="error-state">${error.message}</p>`;
+                });
+
+            if (activeButton) {
+                activeButton.classList.remove('catalog-item--active');
+            }
+            if (buttonElement) {
+                buttonElement.classList.add('catalog-item--active');
+                activeButton = buttonElement;
+            }
+        }
+
+        function findApiById(id) {
+            for (const group of documentationCatalog) {
+                for (const api of group.apis) {
+                    if (api.id === id) {
+                        return { api, product: group.product };
+                    }
+                }
+            }
+            return null;
+        }
+
+        function handleInitialLoad() {
+            const params = new URLSearchParams(window.location.search);
+            const docId = params.get('doc');
+            if (docId) {
+                const match = findApiById(docId);
+                if (match) {
+                    const button = document.querySelector(`.catalog-item[data-id="${docId}"]`);
+                    loadDocumentation(match.api, match.product, button, true);
+                    if (button) {
+                        button.classList.add('catalog-item--active');
+                        activeButton = button;
+                    }
+                }
+            } else {
+                const firstGroup = documentationCatalog[0];
+                if (firstGroup && firstGroup.apis.length) {
+                    const firstApi = firstGroup.apis[0];
+                    const button = document.querySelector(`.catalog-item[data-id="${firstApi.id}"]`);
+                    loadDocumentation(firstApi, firstGroup.product, button, true);
+                    if (button) {
+                        button.classList.add('catalog-item--active');
+                        activeButton = button;
+                    }
+                    updateQueryString(firstApi.id);
+                }
+            }
+        }
+
+        localDocInput.addEventListener('change', event => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = e => {
+                viewerTitle.textContent = file.name;
+                viewerMeta.innerHTML = '<span class="meta-item">Archivo cargado desde tu dispositivo</span>';
+
+                const content = e.target.result;
+                if (file.name.match(/\.(md|markdown)$/i)) {
+                    docContent.innerHTML = marked.parse(content);
+                } else if (file.name.match(/\.(html|htm)$/i)) {
+                    const parser = new DOMParser();
+                    const parsed = parser.parseFromString(content, 'text/html');
+                    docContent.innerHTML = parsed.body ? parsed.body.innerHTML : content;
+                } else {
+                    docContent.innerHTML = '<p class="error-state">Formato no soportado. Utiliza archivos .md o .html.</p>';
+                }
+
+                if (activeButton) {
+                    activeButton.classList.remove('catalog-item--active');
+                    activeButton = null;
+                }
+
+                const params = new URLSearchParams(window.location.search);
+                params.delete('doc');
+                const query = params.toString();
+                if (history.replaceState) {
+                    const suffix = query ? `?${query}` : '';
+                    history.replaceState(null, '', `${window.location.pathname}${suffix}`);
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        createCatalog();
+        handleInitialLoad();
+    </script>
+</body>
 </html>
