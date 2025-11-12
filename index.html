@@ -3,78 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RENT-A-SOFT-SA - Organización</title>
+    <title>RENT-A-SOFT-SA - Centro de Documentación</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
-    <!-- Mobile sidebar toggle button -->
-    <button class="sidebar-toggle" aria-label="Toggle navigation">☰</button>
-    
-    <!-- Left Sidebar Navigation -->
-    <nav class="sidebar">
-        <div class="sidebar-header">
-            <h2>RENT-A-SOFT-SA</h2>
-        </div>
-        <div class="sidebar-nav">
-            <ul>
-                    <li><a href="index.html" class="active">Inicio</a></li>
-                    <li><a href="contact.html">Contacto</a></li>
-                    <li><a href="documentacion.html">Documentación APIs</a></li>
-            </ul>
-        </div>
-    </nav>
-
-    <header>
-        <nav>
-            <div class="nav-container">
-                <ul class="nav-menu">
-                    <li><a href="index.html" class="nav-link active">Inicio</a></li>
-                    <li><a href="contact.html" class="nav-link">Contacto</a></li>
-                    <li><a href="documentacion.html" class="nav-link">Documentación APIs</a></li>
-                </ul>
+<body class="docs-body">
+    <header class="docs-header">
+        <div class="docs-brand">
+            <span class="brand-accent"></span>
+            <div>
+                <p class="brand-label">RENT-A-SOFT-SA</p>
+                <h1 class="brand-title">Centro de Documentación</h1>
             </div>
+        </div>
+        <nav class="docs-nav">
+            <a href="contact.html">Contacto</a>
+            <a href="documentacion.html">Documentación APIs</a>
         </nav>
     </header>
 
-    <main>
-        <section class="hero">
-            <div class="container">
-                <p>
+    <main class="main-layout">
+        <section class="hero-section-full">
+            <div class="hero-content-full">
+                <h2 class="hero-title">Centro de Documentacion de Rent a Soft SA</h2>
+                <p class="hero-description">
                     Este sitio funciona como una wiki centralizada para la documentación técnica de los sistemas y APIs desarrollados por RENT-A-SOFT-SA.
                     Aquí encontrarás información detallada para desarrolladores y empresas que deseen integrar nuestras APIs, incluyendo guías, ejemplos, preguntas frecuentes y recursos para contribuir.
                 </p>
             </div>
         </section>
 
-        <section class="content">
-            <div class="container">
-                <div class="grid">
-                    <div class="card">
-                        <h3>Sobre Nosotros</h3>
-                        <p>Conoce más sobre nuestra organización, misión y valores.</p>
-                        <a href="about.html" class="btn">Leer más</a>
-                    </div>
-                    <div class="card">
-                        <h3>Servicios</h3>
-                        <p>Descubre los servicios y soluciones que ofrecemos.</p>
-                        <a href="services.html" class="btn">Ver servicios</a>
-                    </div>
-                    <div class="card">
-                        <h3>Contacto</h3>
-                        <p>Ponte en contacto con nosotros para más información.</p>
-                        <a href="contact.html" class="btn">Contactar</a>
-                    </div>
+        <section class="main-content">
+            <div class="content-grid">
+                <div class="content-card">
+                    <div class="card-icon">📞</div>
+                    <h3>Contacto</h3>
+                    <p>Ponte en contacto con nosotros para más información sobre nuestras APIs o para solicitar soporte técnico.</p>
+                    <a href="contact.html" class="modern-btn">Contactar</a>
+                </div>
+                
+                <div class="content-card featured">
+                    <div class="card-icon">📚</div>
+                    <h3>Documentación APIs</h3>
+                    <p>Explora nuestra biblioteca técnica completa con documentación interactiva, ejemplos de código y guías de integración.</p>
+                    <a href="documentacion.html" class="modern-btn modern-btn--primary">Explorar APIs</a>
                 </div>
             </div>
         </section>
     </main>
 
-    <footer>
-        <div class="container">
-            <p>&copy; 2024 RENT-A-SOFT-SA. Todos los derechos reservados.</p>
-        </div>
+    <footer class="docs-footer">
+        <p>&copy; 2025 RENT-A-SOFT-SA. Documentación centralizada para equipos y partners.</p>
     </footer>
-    
-    <script src="sidebar.js"></script>
 </body>
 </html>

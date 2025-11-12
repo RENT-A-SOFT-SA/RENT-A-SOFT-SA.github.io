@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Guía de Autenticación - Analytics Suite</title>
+    <style>
+        body {
+            font-family: "Segoe UI", sans-serif;
+            margin: 2rem auto;
+            max-width: 800px;
+            line-height: 1.6;
+            color: #1f2933;
+        }
+        h1, h2 {
+            color: #111827;
+        }
+        pre {
+            background: #f3f4f6;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        code {
+            font-family: "Fira Code", monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Guía de Autenticación</h1>
+    <p>Utiliza la autenticación OAuth 2.0 con el flujo <em>Client Credentials</em> para solicitar tokens.</p>
+    <h2>Solicitud de token</h2>
+    <pre><code>POST /oauth/token
+Host: analytics.rentasoft.com
+Content-Type: application/json
+
+{
+  "client_id": "tu-client-id",
+  "client_secret": "tu-client-secret",
+  "audience": "analytics-api",
+  "grant_type": "client_credentials"
+}
+</code></pre>
+    <p>El token tendrá una vigencia de 1 hora. Renueva el token antes de su expiración.</p>
+</body>
+</html>
