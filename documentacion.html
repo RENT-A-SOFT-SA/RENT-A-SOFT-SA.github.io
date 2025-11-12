@@ -37,20 +37,16 @@
                     <p class="viewer-label">Documento activo</p>
                     <h2 id="viewer-title">Selecciona una API para comenzar</h2>
                 </div>
-                <label class="upload-btn">
-                    Cargar archivo local
-                    <input type="file" id="local-doc" accept=".md,.markdown,.html,.htm">
-                </label>
             </div>
             <div id="viewer-meta" class="viewer-meta"></div>
             <article id="doc-content" class="viewer-content">
-                <p class="empty-state">Elige un elemento del listado o carga un archivo <code>.md</code>/<code>.html</code> para visualizarlo aquí.</p>
+                <p class="empty-state">Elige un elemento del listado para visualizar su documentación aquí.</p>
             </article>
         </section>
     </main>
 
     <footer class="docs-footer">
-        <p>&copy; 2024 RENT-A-SOFT-SA. Documentación centralizada para equipos y partners.</p>
+        <p>&copy; 2025 RENT-A-SOFT-SA. Documentación centralizada para equipos y partners.</p>
     </footer>
 
     <script>
@@ -101,7 +97,6 @@
         const viewerTitle = document.getElementById('viewer-title');
         const viewerMeta = document.getElementById('viewer-meta');
         const docContent = document.getElementById('doc-content');
-        const localDocInput = document.getElementById('local-doc');
         let activeButton = null;
 
         function createCatalog() {
@@ -233,42 +228,6 @@
                 }
             }
         }
-
-        localDocInput.addEventListener('change', event => {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = e => {
-                viewerTitle.textContent = file.name;
-                viewerMeta.innerHTML = '<span class="meta-item">Archivo cargado desde tu dispositivo</span>';
-
-                const content = e.target.result;
-                if (file.name.match(/\.(md|markdown)$/i)) {
-                    docContent.innerHTML = marked.parse(content);
-                } else if (file.name.match(/\.(html|htm)$/i)) {
-                    const parser = new DOMParser();
-                    const parsed = parser.parseFromString(content, 'text/html');
-                    docContent.innerHTML = parsed.body ? parsed.body.innerHTML : content;
-                } else {
-                    docContent.innerHTML = '<p class="error-state">Formato no soportado. Utiliza archivos .md o .html.</p>';
-                }
-
-                if (activeButton) {
-                    activeButton.classList.remove('catalog-item--active');
-                    activeButton = null;
-                }
-
-                const params = new URLSearchParams(window.location.search);
-                params.delete('doc');
-                const query = params.toString();
-                if (history.replaceState) {
-                    const suffix = query ? `?${query}` : '';
-                    history.replaceState(null, '', `${window.location.pathname}${suffix}`);
-                }
-            };
-            reader.readAsText(file);
-        });
 
         createCatalog();
         handleInitialLoad();
