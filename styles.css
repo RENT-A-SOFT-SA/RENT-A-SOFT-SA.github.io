@@ -375,6 +375,29 @@
     overflow-wrap: break-word;
 }
 
+.viewer-content img {
+    max-width: 100%;
+    height: auto;
+    margin: 1.5rem 0;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.viewer-content figure {
+    margin: 1.5rem 0;
+    text-align: center;
+}
+
+.viewer-content figcaption {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #6b7280;
+    font-style: italic;
+}
+
 .empty-state {
     color: #6b7280;
 }
@@ -854,6 +877,67 @@
         overflow-x: auto;
         word-wrap: break-word;
         white-space: pre-wrap;
+    }
+}
+
+/* ==============================
+   Botón flotante scroll hacia arriba
+   ============================== */
+.scroll-to-top {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #4F210A, #8B4513);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    transition: all 0.3s ease;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    box-shadow: 0 4px 12px rgba(79, 33, 10, 0.3);
+}
+
+.scroll-to-top.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.scroll-to-top:hover {
+    transform: scale(1.1) translateY(-2px);
+    box-shadow: 0 6px 16px rgba(79, 33, 10, 0.4);
+}
+
+.scroll-to-top:active {
+    transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+    .scroll-to-top {
+        bottom: 1.5rem;
+        right: 1.5rem;
+        width: 45px;
+        height: 45px;
+        font-size: 1.1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .scroll-to-top {
+        bottom: 1rem;
+        right: 1rem;
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
     }
 }
 

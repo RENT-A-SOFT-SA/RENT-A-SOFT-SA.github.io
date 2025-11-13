@@ -18,7 +18,6 @@
         </div>
         <nav class="docs-nav">
             <a href="index.html">Inicio</a>
-            <a href="contact.html">Contacto</a>
         </nav>
     </header>
 
@@ -48,6 +47,33 @@
     <footer class="docs-footer">
         <p>&copy; 2025 RENT-A-SOFT-SA. Documentación centralizada para equipos y partners.</p>
     </footer>
+
+    <!-- Botón flotante scroll hacia arriba -->
+    <button class="scroll-to-top" id="scrollToTop" title="Ir arriba">
+        ↑
+    </button>
+
+    <script>
+        // Funcionalidad del botón scroll hacia arriba
+        const scrollToTopBtn = document.getElementById('scrollToTop');
+        
+        // Mostrar/ocultar botón según el scroll
+        window.addEventListener('scroll', () => {
+            if (window.pageYOffset > 300) {
+                scrollToTopBtn.classList.add('visible');
+            } else {
+                scrollToTopBtn.classList.remove('visible');
+            }
+        });
+        
+        // Scroll suave hacia arriba al hacer click
+        scrollToTopBtn.addEventListener('click', () => {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+    </script>
 
     <script>
         const documentationCatalog = [
@@ -164,6 +190,11 @@
                 })
                 .then(rawContent => {
                     if (api.format === 'md' || api.path.endsWith('.md') || api.path.endsWith('.markdown')) {
+                        // Configurar marked para generar IDs automáticamente en los encabezados
+                        marked.setOptions({
+                            headerIds: true,
+                            mangle: false
+                        });
                         docContent.innerHTML = marked.parse(rawContent);
                     } else {
                         const parser = new DOMParser();
