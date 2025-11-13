@@ -1,6 +1,11 @@
 # API de Desarrolladores de MrTurno (MrTurno 5)
 
-Esta documentación describe la API REST de **MrTurno 5** orientada a integradores (bots, ERPs y plataformas de gestión). Incluye autenticación por **JWT RS256**, estructura de respuesta estándar, manejo de errores y la referencia de endpoints por módulo: **Seguridad**, **Institución**, **Pacientes**, **Turnos** y **Notificaciones**.
+Esta documentación describe la API REST de **MrTurno 5** orientada a desarrolladores. Incluye autenticación por **JWT RS256**, estructura de respuesta estándar, manejo de errores y la referencia de endpoints por módulo: 
+- **Seguridad**
+- **Institución**
+- **Pacientes**
+- **Turnos**
+- **Notificaciones**
 
 ---
 
@@ -29,12 +34,11 @@ Esta documentación describe la API REST de **MrTurno 5** orientada a integrador
 ---
 
 ## Conceptos clave
-
 - API **REST** con **request/response JSON**.
 - **JWT RS256** firmado por el integrador. MrTurno valida firma, ventana de tiempo y `institution_id`.
 - Todas las llamadas (salvo `security/status`) requieren enviar el **Bearer token** en `Authorization`.
 - El **usuario paciente** inicia sesión vía flujo de verificación por **email/SMS**.
-- Las respuestas utilizan un **envoltorio estándar** con `success`, `message`, `code` y `results`.
+- Las respuestas utilizan un **formato estándar** con `success`, `message`, `code` y `results`.
 
 ---
 
@@ -64,7 +68,7 @@ Todos los endpoints (salvo `security/status`) requieren un JWT válido por **5 m
 
 ```json
 {
-  "iss": "MRTURNO_<SU_EMPRESA>",
+  "iss": "MRTURNO_<SERVICIO>",
   "sub": "nombre-servicio/referencia-cliente",
   "iat": 1699999999,
   "nbf": 1699999879,

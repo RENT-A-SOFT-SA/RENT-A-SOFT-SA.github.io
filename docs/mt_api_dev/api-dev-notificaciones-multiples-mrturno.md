@@ -1,4 +1,4 @@
-<img width="2787" height="1338" alt="image" src="https://github.com/user-attachments/assets/53014e2a-746d-4f73-934f-1bf91ea7e0fb" /># API-DEV: Notificaciones Múltiples — MrTurno
+# API-DEV: Notificaciones Múltiples — MrTurno
 
 > Documento de referencia técnica para integrar el flujo de recordatorios y confirmaciones/cancelaciones de turnos vía notificaciones. Orientado a desarrolladores externos a la empresa.
 
@@ -230,12 +230,91 @@ Authorization: Bearer <YOUR_API_TOKEN>
 
 ---
 
+### `POST /dev/notifications/{notification_id}`
+
+Método **directo** para confirmar o cancelar un turno específico por su ID de notificación.
+
+**Headers**
+
+```
+Content-Type: application/json
+Authorization: Bearer <YOUR_API_TOKEN>
+```
+
+**URL Parameters**
+- `notification_id` *(obligatorio)*: ID de la notificación obtenido del endpoint de listado.
+
+**Body (JSON)**
+
+```json
+{
+  "action": "confirm",
+  "comment": "Confirmación directa desde sistema externo"
+}
+```
+
+**Campos**
+- `action` *(obligatorio)*: `confirm` | `cancel`.
+- `comment` *(opcional)*: Texto libre (máx. 255).
+
+**Response (200)**
+
+```json
+{
+  "success": true,
+  "code": 200,
+  "message": "OK",
+  "count": 1,
+  "results": {
+    "action_taken": "confirm",
+    "notification_id": "notification-uuid-123",
+    "timestamp": "2025-11-13T14:30:00Z"
+  }
+}
+```
+
+**Errores comunes**
+
+- `400 Bad Request`: acción inválida o parámetros malformados.
+- `401 Unauthorized`: token inválido o expirado.
+- `404 Not Found`: `notification_id` inexistente.
+- `409 Conflict`: la notificación ya fue procesada.
+- `500 Internal Server Error`.
+
+---
+
 ## Flujo de integración recomendado
 
 1. **Autenticación**: configurar el *Bearer Token* en tu cliente HTTP.
 2. **Obtener notificaciones**: llamar a `get-turn-notifications-by-institution` para la fecha objetivo.
 3. **Componer y enviar mensajes**: usar los campos del `results` (incluye `confirm_url` y `cancel_url`) para armar la plantilla.
 4. **Registrar respuestas**: cuando el paciente interactúa, llamar `respond-notification`.
+
+![Diagrama del flujo de notificaciones](docs/mt_api_dev/secuencia_notificaciones_multiples.png)
+
+---
+
+## Buenas prácticas de integración
+
+### Manejo de errores y reintentos
+- Implementá **backoff exponencial** para reintentos en errores `5xx`.
+- Respetá el encabezado `Retry-After` en respuestas `429`.
+- Logeá errores `4xx` para auditoría, pero no los reintentes automáticamente.
+
+### Optimización de rendimiento
+- Realizá llamadas a `get-turn-notifications-by-institution` **una vez por día** y por institución.
+- Almacená localmente las notificaciones obtenidas para evitar llamadas repetitivas.
+- Usá **pooling de conexiones HTTP** para múltiples requests.
+
+### Seguridad
+- **Nunca** expongas el token de API en clientes frontend.
+- Rotá tokens regularmente según las políticas de tu organización.
+- Validá y sanitizá todos los inputs antes de enviarlos a la API.
+
+### Monitoreo
+- Implementá métricas para detectar fallos de integración.
+- Alertá cuando la tasa de errores `4xx/5xx` supere umbrales.
+- Monitoreá latencias de respuesta para detectar degradación.
 
 ---
 
@@ -265,6 +344,59 @@ curl -X POST "https://api.alpha.mrturno.com/dev/notifications/respond-notificati
     "comment": "Confirmo asistencia"
   }'
 ```
+
+---
+
+## Límites de uso
+
+### Rate Limiting
+- **100 requests por minuto** por token de API.
+- **1,000 requests por día** por servicio.
+- Los límites se resetean cada minuto/día según corresponda.
+
+### Limites de datos
+- Máximo **500 notificaciones** por respuesta en `get-turn-notifications-by-institution`.
+- Comentarios limitados a **255 caracteres**.
+- Timeout de **30 segundos** por request.
+
+### Políticas de uso
+- No realizar polling continuo; usar intervalos de **al menos 1 hora**.
+- Los datos de notificaciones son válidos por **24 horas** desde su generación.
+- Respetar ventanas de mantenimiento programado (notificadas con 48hs de anticipación).
+
+### Excepciones y escalamiento
+Para solicitar límites superiores, contactá a soporte técnico con:
+- Justificación del caso de uso.
+- Volumen estimado de requests.
+- Información de la institución y el servicio integrador.
+
+---
+
+## Seguridad y cumplimiento
+
+### Protección de datos
+- Todos los datos se transmiten por **HTTPS/TLS 1.2+**.
+- Los datos de pacientes están sujetos a normativas de **protección de datos personales**.
+- No almacenes información sensible (números de teléfono, nombres) por más tiempo del necesario.
+
+### Cumplimiento normativo
+- La API cumple con estándares de **seguridad en salud**.
+- Logs de auditoría se mantienen por **2 años**.
+- Acceso restringido por **principio de menor privilegio**.
+
+### Responsabilidades del integrador
+- **Cifrar** datos sensibles en tránsito y reposo.
+- Implementar **autenticación fuerte** en tus sistemas.
+- **Auditar** accesos y cambios en configuraciones.
+- **Notificar** incidentes de seguridad en un plazo de 24 horas.
+
+### Incident response
+Ante sospecha de compromiso de seguridad:
+1. **Revocar inmediatamente** el token comprometido.
+2. **Notificar** a soporte técnico: security@mrturno.com
+3. **Documentar** el incidente para investigación.
+4. **Generar** un nuevo token una vez resuelto el incidente.
+
 ---
 
 ## Solución de problemas
