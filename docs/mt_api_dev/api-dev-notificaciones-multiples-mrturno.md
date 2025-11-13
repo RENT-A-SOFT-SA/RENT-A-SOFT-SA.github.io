@@ -1,8 +1,6 @@
-# API-DEV: Notificaciones Múltiples — MrTurno
+<img width="2787" height="1338" alt="image" src="https://github.com/user-attachments/assets/53014e2a-746d-4f73-934f-1bf91ea7e0fb" /># API-DEV: Notificaciones Múltiples — MrTurno
 
-> Documento de referencia técnica para integrar el flujo de recordatorios y confirmaciones/cancelaciones de turnos vía notificaciones. Orientado a desarrolladores backend y frontend.
-
-**Versión:** 1.0 • **Actualizado:** 2025-11-12
+> Documento de referencia técnica para integrar el flujo de recordatorios y confirmaciones/cancelaciones de turnos vía notificaciones. Orientado a desarrolladores externos a la empresa.
 
 ---
 
@@ -29,14 +27,14 @@
 
 ## Introducción
 
-La API de **Notificaciones Múltiples** permite a sistemas externos obtener el lote de recordatorios de turnos pendientes y registrar las respuestas de pacientes (confirmar, cancelar, spam, etc.). Está pensada para orquestar envíos (p. ej., WhatsApp/SMS/Email) y consolidar el feedback del paciente en MrTurno.
+La API de **Notificaciones Múltiples** permite a sistemas externos obtener el lote de recordatorios de turnos pendientes y registrar las respuestas de pacientes (confirmar, cancelar, spam, etc.). Está pensada para orquestar envíos (p. ej., WhatsApp/SMS/Email) y consolidar el la respuesta del paciente en MrTurno y RAS Salud.
 
 Casos de uso principales:
 
 - Obtener notificaciones de turnos por institución y/o sucursal para una fecha.
 - Generar mensajes a partir de los datos provistos (paciente, profesional, horarios, URLs de confirmación/cancelación).
 - Registrar la respuesta del paciente desde un canal externo.
-- Confirmar o cancelar directamente por ID de notificación cuando el canal no soporte el endpoint de respuesta.
+- Confirmar o cancelar directamente por ID de notificación.
 
 ---
 
@@ -46,8 +44,6 @@ Casos de uso principales:
 - **Producción:** `https://api.mrturno.com/dev/`
 
 Todas las peticiones son REST con `Content-Type: application/json` y se transmiten sobre HTTPS.
-
-> **Nota:** Si ves URLs legadas en documentación previa, priorizá las de esta guía para nuevas integraciones.
 
 ---
 
@@ -206,6 +202,9 @@ Authorization: Bearer <YOUR_API_TOKEN>
 **Campos**
 - `notification_id` *(obligatorio)*: ID entregado por el endpoint de obtención.
 - `method` *(obligatorio)*: `confirm` | `cancel` | `spam`.
+    - `confirm`: Confirma asistencia al turno. En algunas instituciones, una vez confirmado ya no se puede cancelar posteriormente.
+    - `cancel`: Cancela el turno y queda disponible para que pueda ser ocupado por otro paciente.
+    - `spam`: Agrega al paciente a una lista para que no se le envíen más notificaciones automáticas.
 - `comment` *(opcional)*: Texto libre (máx. 255).
 
 **Response (200)**
@@ -231,69 +230,12 @@ Authorization: Bearer <YOUR_API_TOKEN>
 
 ---
 
-### `POST /dev/notifications/{notification_id}`
-
-Confirma o cancela un turno **directamente por ID de notificación** (flujo histórico). Útil cuando la confirmación/cancelación llega desde un canal que **no** utiliza `respond-notification`.
-
-**Path Params**
-- `notification_id` *(obligatorio)*
-
-**Headers**
-
-```
-Content-Type: application/json
-Authorization: Bearer <YOUR_API_TOKEN>
-```
-
-**Body (JSON)**
-
-```json
-{
-  "method": "confirm",
-  "comment": "confirmo el turno de mañana"
-}
-```
-
-**Valores admitidos en `method`**
-- `confirm`
-- `cancel`
-- `unsubscribe` (el paciente solicita no recibir más mensajes)
-- `not_sent` (marcar como no entregado por motivo externo)
-
-**Response (200)**
-
-```json
-{ "success": true, "code": 200, "message": "OK", "count": 1, "results": true }
-```
-
-**Errores comunes**
-
-- `400 Bad Request`: método no permitido.
-- `401 Unauthorized`: token inválido o expirado.
-- `404 Not Found`: ID inexistente.
-- `409 Conflict`: estado previo incompatible (p. ej., ya cancelado).
-- `500 Internal Server Error`.
-
----
-
 ## Flujo de integración recomendado
 
 1. **Autenticación**: configurar el *Bearer Token* en tu cliente HTTP.
 2. **Obtener notificaciones**: llamar a `get-turn-notifications-by-institution` para la fecha objetivo.
-3. **Componer y enviar mensajes**: usar los campos del `results` (incluye `confirm_url` y `cancel_url`) para armar la plantilla en WhatsApp/SMS/Email.
-4. **Registrar respuestas**: cuando el paciente interactúa, llamar `respond-notification` (o el endpoint por ID si aplica).
-5. **Monitoreo**: registrar métricas de entrega, respuesta y error por canal para diagnóstico y mejoras.
-
----
-
-## Buenas prácticas de integración
-
-- **Idempotencia de tu lado**: si tu orquestador reintenta, usá una clave idempotente propia y considerá `results: true` como operación aplicada.
-- **Protección de enlaces**: las URLs de confirmación/cancelación son para el **usuario final**; para registrar acciones, usá el endpoint de **respuesta**.
-- **Validaciones previas**: validá formato `YYYY-MM-DD` en `notification_date` y tipos antes de invocar el API.
-- **Tiempos y ventanas**: programá obtención y envío con suficiente anticipación al turno (p. ej., día anterior y el mismo día).
-- **Observabilidad**: logueá `code`, `message`, y request-id (si está disponible) para correlación y soporte.
-- **Backoff exponencial**: ante `429` implementá reintentos con *jitter* y respetá `Retry-After` si es provisto.
+3. **Componer y enviar mensajes**: usar los campos del `results` (incluye `confirm_url` y `cancel_url`) para armar la plantilla.
+4. **Registrar respuestas**: cuando el paciente interactúa, llamar `respond-notification`.
 
 ---
 
@@ -323,38 +265,6 @@ curl -X POST "https://api.alpha.mrturno.com/dev/notifications/respond-notificati
     "comment": "Confirmo asistencia"
   }'
 ```
-
-### 3) Confirmar/cancelar por ID de notificación
-
-```bash
-curl -X POST "https://api.alpha.mrturno.com/dev/notifications/notification-uuid-123" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "method": "cancel",
-    "comment": "No puedo asistir"
-  }'
-```
-
-> **Postman**: Podés importar estas llamadas como *raw requests*. Si preferís, solicitá una **colección Postman** y la generamos con variables de entorno para `TOKEN` y `BASE_URL`.
-
----
-
-## Límites de uso
-
-- Límite de **peticiones por minuto (RPM)** por servicio (consultar contrato o cabeceras de rate-limit si están habilitadas).
-- Tamaño de respuesta: el endpoint de obtención puede retornar **cientos** de notificaciones; si necesitás paginación, contactá a soporte para habilitarla.
-- Tamaño de `comment`: recomendado **<= 255** caracteres.
-
----
-
-## Seguridad y cumplimiento
-
-- **HTTPS obligatorio** en todos los ambientes.
-- Rotación periódica del **Bearer Token** y almacenamiento cifrado (KMS/Vault).
-- No persistir **datos sensibles** innecesariamente; anonimizar logs de PII (teléfonos, nombres).
-- Respetar las **preferencias de contacto** del paciente (`unsubscribe`).
-
 ---
 
 ## Solución de problemas
@@ -365,7 +275,6 @@ curl -X POST "https://api.alpha.mrturno.com/dev/notifications/notification-uuid-
 - **409 Conflict**: la notificación ya tiene un estado final; tratá la respuesta como informativa.
 - **429 Too Many Requests**: implementá backoff exponencial y respetá *Retry-After*.
 - **5xx**: reintentá con *circuit breaker* y alertá a soporte si persiste.
-
 ---
 
 ## Glosario
