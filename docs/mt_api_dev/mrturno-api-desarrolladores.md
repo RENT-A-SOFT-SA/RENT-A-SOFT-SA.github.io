@@ -123,14 +123,19 @@ Accept: application/json
 
 ---
 
-## Buenas prácticas y límites de uso
+## Buenas prácticas
 
 - **JWT corto:** expírelos a los 5 min. Recalcule `nbf` ~2 min antes de `iat` para tolerancia de reloj.
-- **Idempotencia** al guardar turnos: evite dobles reservas reutilizando `free_turn_slot_id` y registrando su propio `request_id`.
+- **Idempotencia** al guardar turnos: evite dobles reservas reutilizando `free_turn_slot_id`.
 - **Canales**: mantenga un `developer_channel_name` consistente por canal (ej.: `acme_whatsapp`, `acme_web`).
-- **Rate limiting**: diseñe reintentos exponenciales (HTTP 429 o `success=false` transitorio).
-- **PII**: no registre datos sensibles en logs de producción. Mascar teléfonos/e-mails.
-- **Seguridad**: proteja su clave privada; rote claves al menos semestralmente.
+
+### Organización de API
+
+![Tipos de endpoints](docs/mt_api_dev/api_dev_categorias.png)
+
+### Flujos de sesión de usuario
+![Flujos de sesión](docs/mt_api_dev/api_dev_flujos_sesion.png)
+
 
 ---
 
@@ -613,3 +618,5 @@ curl -sS -X POST "${API_URL}/dev/security/ping" \
 - **Canal**: Origen de la sesión (ej.: `whatsapp`, `web`). Se representa en `developer_channel_name`.
 - **Plan de obra social**: Cobertura médica con `social_security_plan_id`.
 - **Titular**: Paciente dueño de la cuenta (holder).
+
+---
