@@ -3,31 +3,9 @@
 > Documento de referencia técnica para integrar el flujo de recordatorios y confirmaciones/cancelaciones de turnos vía notificaciones. Orientado a desarrolladores externos a la empresa.
 
 ---
-
-## Índice
-
-- [Introducción](#introducción)
-- [Ambientes y URLs](#ambientes-y-urls)
-- [Autenticación](#autenticación)
-- [Estructura de respuesta estándar](#estructura-de-respuesta-estándar)
-- [Prerrequisitos](#prerrequisitos)
-- [Endpoints](#endpoints)
-  - [Obtener notificaciones por institución](#post-devnotificationsget-turn-notifications-by-institution)
-  - [Registrar respuesta de notificación](#post-devnotificationsrespond-notification)
-  - [Confirmar/Cancelar por ID de notificación](#post-devnotificationsnotification_id)
-- [Flujo de integración recomendado](#flujo-de-integración-recomendado)
-- [Buenas prácticas de integración](#buenas-prácticas-de-integración)
-- [Ejemplos rápidos (curl / Postman)](#ejemplos-rápidos-curl--postman)
-- [Límites de uso](#límites-de-uso)
-- [Seguridad y cumplimiento](#seguridad-y-cumplimiento)
-- [Solución de problemas](#solución-de-problemas)
-- [Glosario](#glosario)
-
----
-
 ## Introducción
 
-La API de **Notificaciones Múltiples** permite a sistemas externos obtener el lote de recordatorios de turnos pendientes y registrar las respuestas de pacientes (confirmar, cancelar, spam, etc.). Está pensada para orquestar envíos (p. ej., WhatsApp/SMS/Email) y consolidar el la respuesta del paciente en MrTurno y RAS Salud.
+La API de **Notificaciones Múltiples** permite a sistemas externos obtener un lote de recordatorios de turnos pendientes y registrar las respuestas de pacientes (confirmar, cancelar, spam, etc.). Está pensada para orquestar envíos (p. ej., WhatsApp/SMS/Email) y consolidar el la respuesta del paciente en MrTurno y RAS Salud.
 
 Casos de uso principales:
 
@@ -55,7 +33,8 @@ La API utiliza **Bearer Token** (JWT o similar). Incluí el encabezado HTTP en *
 Authorization: Bearer <YOUR_API_TOKEN>
 ```
 
-Consideraciones:
+
+### Consideraciones:
 - Renová el token antes de su expiración según tu proveedor de credenciales.
 - No expongas el token en clientes públicos. Usá un backend propio para firmar y retransmitir.
 - Ante `401 Unauthorized`, verificá la vigencia del token y el formato del encabezado.

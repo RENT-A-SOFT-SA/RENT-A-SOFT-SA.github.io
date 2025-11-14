@@ -21,6 +21,11 @@
             </div>
         </div>
         <nav class="docs-nav">
+            <div class="theme-toggle" id="themeToggle" title="Cambiar tema">
+                <span class="theme-toggle-icon sun">☀️</span>
+                <div class="theme-toggle-switch"></div>
+                <span class="theme-toggle-icon moon">🌙</span>
+            </div>
             <a href="documentacion.html">Documentación APIs</a>
         </nav>
     </header>
@@ -84,6 +89,43 @@
                 top: 0,
                 behavior: 'smooth'
             });
+        });
+
+        // Funcionalidad del dark mode
+        function initTheme() {
+            // Verificar si hay un tema guardado en localStorage
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            // Usar tema guardado o preferencia del sistema
+            const currentTheme = savedTheme || (prefersDark ? 'dark' : 'light');
+            
+            // Aplicar tema al documento
+            document.documentElement.setAttribute('data-theme', currentTheme);
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            // Cambiar tema en el documento
+            document.documentElement.setAttribute('data-theme', newTheme);
+            
+            // Guardar en localStorage
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Inicializar tema al cargar la página
+        initTheme();
+
+        // Event listener para el toggle de tema
+        document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+        // Escuchar cambios en preferencias del sistema
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('theme')) {
+                document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+            }
         });
     </script>
 </body>
