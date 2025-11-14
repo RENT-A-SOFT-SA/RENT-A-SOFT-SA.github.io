@@ -9,30 +9,6 @@ Esta documentación describe la API REST de **MrTurno 5** orientada a desarrolla
 
 ---
 
-## Tabla de contenido
-
-- [Conceptos clave](#conceptos-clave)
-- [Ambientes y URLs](#ambientes-y-urls)
-- [Autenticación y autorización (JWT RS256)](#autenticación-y-autorización-jwt-rs256)
-  - [Generación de claves](#generación-de-claves)
-  - [Claims requeridos](#claims-requeridos)
-  - [Encabezados HTTP](#encabezados-http)
-  - [Errores de autenticación comunes](#errores-de-autenticación-comunes)
-- [Formato de respuesta estándar](#formato-de-respuesta-estándar)
-- [Códigos de respuesta de aplicación](#códigos-de-respuesta-de-aplicación)
-- [Buenas prácticas y límites de uso](#buenas-prácticas-y-límites-de-uso)
-- [Recetas rápidas](#recetas-rápidas)
-- [Referencia de API](#referencia-de-api)
-  - [Módulo Seguridad](#módulo-seguridad)
-  - [Módulo Institución](#módulo-institución)
-  - [Módulo Pacientes](#módulo-pacientes)
-  - [Módulo Turnos](#módulo-turnos)
-  - [Módulo Notificaciones](#módulo-notificaciones)
-- [Flujos recomendados (Casos frecuentes)](#flujos-recomendados-casos-frecuentes)
-- [Glosario](#glosario)
-
----
-
 ## Conceptos clave
 - API **REST** con **request/response JSON**.
 - **JWT RS256** firmado por el integrador. MrTurno valida firma, ventana de tiempo y `institution_id`.
@@ -62,9 +38,9 @@ ssh-keygen -t rsa -b 4096 -m PEM -f jwtRS256.key   # sin passphrase
 openssl rsa -in jwtRS256.key -pubout -outform PEM -out jwtRS256.key.pub
 ```
 
-### Claims requeridos
+### Token JWT
 
-Todos los endpoints (salvo `security/status`) requieren un JWT válido por **5 minutos** máximo (ventana estricta). Claims:
+Para todas las peticiones de la API (excepto el método "status") se debe enviar el token JWT con los siguientes parámetros:
 
 ```json
 {
@@ -75,12 +51,24 @@ Todos los endpoints (salvo `security/status`) requieren un JWT válido por **5 m
   "exp": 1700000299,
   "institution_id": "4aa8ccd2-3d22-11ea-bb33-963e62249b4a",
   "username": "+5492615792211",
-  "developer_channel_name": "prestobots_whatsapp"
+  "developer_channel_name": "servicio_whatsapp"
 }
 ```
 
-- `username` es **obligatorio** en funciones que requieren sesión de usuario (login/sign-up) y **opcional** en otras.
-- `developer_channel_name`: identificador del canal (máx. 50 chars, `[a-z0-9_-]*`, minúsculas). Debe incluir el nombre del developer.
+- **`iss`**: nombre de usuario asignado por RAS
+- **`sub`**: nombre del servicio y una referencia del cliente. Ej: "servicio/demo5"
+- **`iat`**: timestamp en el cual fue armado el token. Los tokens son válidos por 5 minutos
+- **`nbf`**: timestamp a partir del cual el token es válido. Esto es para reducir el leeway entre servidores. Recomendamos 2 minutos antes del IAT
+- **`exp`**: timestamp a partir del cual el token expira. Recomendamos 5 minutos desde el IAT. MrTurno solo toma tokens válidos por 5 minutos
+- **`institution_id`**: id de la institución en MrTurno (coordinar con RAS)
+- **`username`** (OPCIONAL): número de teléfono o email del usuario registrado en MrTurno5. Es obligatorio para funciones que requieren sesión de usuario y login. Es opcional para el SIGNUP
+- **`developer_channel_name`**: id del canal utilizado para la sesión. 
+  - **Restricciones del canal**: máximo 50 caracteres, sólo caracteres alfanuméricos sin espacio y en minúsculas. Regla PCRE: `[a-z0-9_-]*`. Debe incluir el nombre del developer
+  - Ej: "servicio_whatsapp", "servicio_web"
+  - Es obligatorio para funciones que requieren sesión de usuario y login
+
+El algoritmo para encriptar el JWT es "RS256". Recordar enviar la clave pública a RAS.
+
 
 > **Algoritmo:** RS256. Enviar JWT en encabezado `Authorization: Bearer <token>`.
 
@@ -91,12 +79,6 @@ Authorization: Bearer <jwt>
 Content-Type: application/json
 Accept: application/json
 ```
-
-### Errores de autenticación comunes
-
-- **130** – Token expirado (emitir uno nuevo y reintentar).
-- **150** – Sesión no iniciada (ejecutar `security/prelogin` + `security/login`).
-
 ---
 
 ## Formato de respuesta estándar
@@ -124,7 +106,7 @@ Accept: application/json
 |   10 |  true   | Usuario y sesión válidos                                         | —                                      |
 |  100 |  false  | Usuario no encontrado                                            | `security/sign-up`                     |
 |  110 |  false  | Sesión no iniciada. Código de verificación enviado por **email** | `security/login`                       |
-|  111 |  false  | Sesión no iniciada. Código de verificación enviado por **SMS**   | `security/login`                       |
+|  111 |  false  | Sesión no iniciada. Código de verificación enviado por **Whatsapp**   | `security/login`                       |
 |  120 |  false  | Código de verificación incorrecto                                | Reintentar `security/login`            |
 |  130 |  false  | Token expirado                                                   | Reemitir JWT                           |
 |  140 |  false  | Paciente inexistente                                             | Crear/Asociar paciente                 |
@@ -132,7 +114,7 @@ Accept: application/json
 |  160 |  false  | Email ya utilizado                                               | `security/login` / asociar teléfono    |
 |  170 |  false  | Usuario ya existe                                                | `security/login`                       |
 |  180 |  true   | Usuario creado, código enviado por **email**                     | `security/login`                       |
-|  181 |  true   | Usuario creado, código enviado por **SMS**                       | `security/login`                       |
+|  181 |  true   | Usuario creado, código enviado por **Whatsapp**                       | `security/login`                       |
 |  190 |  false  | No autorizado para asociar teléfono                               | Revisar alta / soporte                 |
 |  200 |  true   | No posee turnos pendientes emitidos por este medio               | —                                      |
 |  210 |  false  | Email en blacklist                                               | Contactar soporte                      |
@@ -222,7 +204,7 @@ curl -sS -X POST "${API_URL}/dev/security/ping" \
 ---
 
 #### `GET /security/prelogin`
-**Descripción:** Inicia login del paciente. Envía código de verificación (email/SMS).  
+**Descripción:** Inicia login del paciente. Envía código de verificación (email/Whatsapp).  
 **Requiere:** JWT **con `username` y `developer_channel_name`**.  
 **Respuestas:** utilizar tabla de **códigos** (110/111, etc.).
 
@@ -267,7 +249,7 @@ curl -sS -X POST "${API_URL}/dev/security/ping" \
   "last_name":"Giorlando",
   "document_number":"12345478",
   "phone_number":"+5492612246571",
-  "email":"giorlandoagustin@rentasoft.com.ar",
+  "email":"giorlandoagustin@gmail.com.ar",
   "gender":"10",
   "birthdate":"1994-10-27",
   "social_security_plan_id":"139711e8-f150-11e9-99ff-180373c4d4c1",
@@ -434,8 +416,22 @@ curl -sS -X POST "${API_URL}/dev/security/ping" \
 }
 ```
 **Catálogos:**
-- `gender`: 0=Otro, 10=Masculino, 20=Femenino  
-- `kinship_type`: 0=Otro, 10=Esposo/a, 20=Hijo/a, 30=Amigo/a, 40=Padre/Madre, 50=Sobrino/a, 60=Nieto/a, 70=Abuelo/a, 80=Hermano/a, 90=Tío/Tía
+- `gender`:
+    - 0=Otro
+    - 10=Masculino
+    - 20=Femenino
+
+- `kinship_type`: 
+    - 0= Otro
+    - 10= Esposo/a
+    - 20= Hijo/a
+    - 30= Amigo/a
+    - 40= Padre/Madre
+    - 50= Sobrino/a
+    - 60= Nieto/a
+    - 70= Abuelo/a
+    - 80= Hermano/a
+    - 90= Tio/a
 
 **Respuesta (`results`):** igual estructura que `GET /patients/{id}` (el nuevo paciente).
 
@@ -612,50 +608,8 @@ curl -sS -X POST "${API_URL}/dev/security/ping" \
 
 ---
 
-## Flujos recomendados (Casos frecuentes)
-
-### A) Usuario registró inicialmente a un **familiar** como titular
-1. Buscar por DNI de titular real (madre/padre).  
-   - `GET /security/user-status` → si **110/111**, iniciar `prelogin` y `login`.
-2. Tras login exitoso → `GET /patients/document_number/{dni_titular}`  
-   - Si **140** (paciente inexistente): solicitar datos y **`POST /patients/add-kinship`**.
-3. Reservar turno con `free-turn-slots` y `POST /turns`.
-
-### B) Usuario existente por **email**: asociar **teléfono** enviado en el JWT
-1. `GET /patients/document_number/{dni}` → **100** (usuario no registrado).  
-2. Solicitar email → `POST /security/associate-to-account` → se envía código al mail.  
-3. `POST /security/login` con código.  
-4. Si **140** → alta de kinship como en (A).
-
----
-
 ## Glosario
 
 - **Canal**: Origen de la sesión (ej.: `whatsapp`, `web`). Se representa en `developer_channel_name`.
 - **Plan de obra social**: Cobertura médica con `social_security_plan_id`.
 - **Titular**: Paciente dueño de la cuenta (holder).
-
----
-
-## Ejemplos cURL adicionales
-
-### Obtener profesionales de una sucursal
-```bash
-curl -sS GET "${API_URL}/dev/institution/professionals/subsidiary/${SUBSIDIARY_ID}" \
-  -H "Authorization: Bearer ${JWT}"
-```
-
-### Buscar turnos libres para la semana
-```bash
-curl -sS -X POST "${API_URL}/dev/turns/free-turn-slots" \
-  -H "Authorization: Bearer ${JWT}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "institution_subsidiary_id":"'"${SUBSIDIARY_ID}"'",
-    "professional_id":"'"${PROFESSIONAL_ID}"'",
-    "social_security_plan_id":"'"${PLAN_ID}"'",
-    "practice_id":"'"${PRACTICE_ID}"'",
-    "start_date":"2025-11-10",
-    "end_date":"2025-11-16"
-  }'
-```
