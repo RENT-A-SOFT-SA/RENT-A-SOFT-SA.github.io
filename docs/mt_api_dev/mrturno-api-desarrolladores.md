@@ -255,12 +255,19 @@ curl -sS -X POST "${API_URL}/dev/security/ping" \
   "document_number":"12345478",
   "phone_number":"+5492612246571",
   "email":"giorlandoagustin@gmail.com.ar",
-  "gender":"10",
+  "gender":10,
   "birthdate":"1994-10-27",
   "social_security_plan_id":"139711e8-f150-11e9-99ff-180373c4d4c1",
   "affiliate_number":"987654321"
 }
 ```
+
+**Catálogos:**
+- `gender`:
+    - 0=Otro
+    - 10=Masculino
+    - 20=Femenino
+
 **Respuesta (éxito):**
 ```json
 {
