@@ -1,6 +1,8 @@
 # API de Desarrolladores de MrTurno (MrTurno 5)
 
-Esta documentación describe la API REST de **MrTurno 5** orientada a desarrolladores. Incluye autenticación por **JWT RS256**, estructura de respuesta estándar, manejo de errores y la referencia de endpoints por módulo: 
+Esta documentación describe la API-DEV de **MrTurno 5** orientada a desarrolladores. Incluye autenticación por **JWT RS256**, estructura de respuesta estándar, manejo de errores y la referencia de endpoints por módulo.
+
+## Módulos de la API
 - **Seguridad**
 - **Institución**
 - **Pacientes**
@@ -8,19 +10,17 @@ Esta documentación describe la API REST de **MrTurno 5** orientada a desarrolla
 - **Notificaciones**
 
 ---
-
 ## Conceptos clave
 - API **REST** con **request/response JSON**.
 - **JWT RS256** firmado por el integrador. MrTurno valida firma, ventana de tiempo y `institution_id`.
 - Todas las llamadas (salvo `security/status`) requieren enviar el **Bearer token** en `Authorization`.
-- El **usuario paciente** inicia sesión vía flujo de verificación por **email/SMS**.
+- El **usuario paciente** inicia sesión vía flujo de verificación por **email/Whatsapp**.
 - Las respuestas utilizan un **formato estándar** con `success`, `message`, `code` y `results`.
-
 ---
 
 ## Ambientes y URLs
 
-- **Sandbox/Alpha**: `https://api.alpha.mrturno.com/dev/`
+- **Sandbox/Alpha**: `https://alpha-api.mrturno.com/dev/`
 - **Producción**: `https://api.mrturno.com/dev/`
 
 > Todas las rutas documentadas asumen un prefijo `{API_URL}/dev/` (reemplazar por el ambiente correspondiente).
@@ -61,7 +61,7 @@ Para todas las peticiones de la API (excepto el método "status") se debe enviar
 - **`nbf`**: timestamp a partir del cual el token es válido. Esto es para reducir el leeway entre servidores. Recomendamos 2 minutos antes del IAT
 - **`exp`**: timestamp a partir del cual el token expira. Recomendamos 5 minutos desde el IAT. MrTurno solo toma tokens válidos por 5 minutos
 - **`institution_id`**: id de la institución en MrTurno (coordinar con RAS)
-- **`username`** (OPCIONAL): número de teléfono o email del usuario registrado en MrTurno5. Es obligatorio para funciones que requieren sesión de usuario y login. Es opcional para el SIGNUP
+- **`username`** (OPCIONAL): número de teléfono o email del usuario registrado en MrTurno5. Es obligatorio para funciones que requieren sesión de usuario y login.
 - **`developer_channel_name`**: id del canal utilizado para la sesión. 
   - **Restricciones del canal**: máximo 50 caracteres, sólo caracteres alfanuméricos sin espacio y en minúsculas. Regla PCRE: `[a-z0-9_-]*`. Debe incluir el nombre del developer
   - Ej: "servicio_whatsapp", "servicio_web"
@@ -304,9 +304,9 @@ curl -sS -X POST "${API_URL}/dev/security/ping" \
 [{
   "institution_subsidiary_id": "94da2333-11fd-11ea-aa4e-782bcbab05d7",
   "name": "Calle Peru",
-  "phone_number": "",
+  "phone_number": "+5492612345678",
   "address": "Calle Peru 590",
-  "email": "",
+  "email": "calleperu590@example.com",
   "subsidiary_patient_comment": "comentario de sucursal"
 }]
 ```
@@ -343,13 +343,13 @@ curl -sS -X POST "${API_URL}/dev/security/ping" \
 ```json
 [{
   "professional_id": "bc7ad116-a53a-11ea-a720-de31932e4d21",
-  "salutation": null,
+  "salutation": "Dr.",
   "first_name": "NO TOCAR",
   "last_name": "MRTURNO PRUEBAS",
   "enrolment_number": "1",
   "specialty_name": "clínica médica",
   "calendar_description": "lunes a domingo 08:00–12:00",
-  "professional_patient_comment": "."
+  "professional_patient_comment": "comentario del profesional"
 }]
 ```
 
@@ -374,7 +374,9 @@ curl -sS -X POST "${API_URL}/dev/security/ping" \
   "affiliate_number": "123",
   "is_holder": true
 }
+
 ```
+**is_holder** indica si el paciente es titular o familiar.
 
 ---
 
@@ -579,14 +581,14 @@ curl -sS -X POST "${API_URL}/dev/security/ping" \
 **JWT especial (ejemplo):**
 ```json
 {
-  "iss": "MRTURNO_PRESTOBOTS_TESTING",
-  "sub": "prestobots_reminders/mrturno",
+  "iss": "MRTURNO_SERVICIO_NOTIFICATIONS",
+  "sub": "servicio/mrturno",
   "iat": 1663084684,
   "nbf": 1663084564,
   "exp": 1673084984,
   "institution_id": "4f5ce136-6cee-11ed-9b43-0aa09875696d",
   "username": "soporte@mrturno.com",
-  "developer_channel_name": "prestobots_whatsapp"
+  "developer_channel_name": "servicio_whatsapp"
 }
 ```
 
