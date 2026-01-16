@@ -99,7 +99,7 @@ Accept: application/json
 
 ---
 
-## Códigos de respuesta de aplicación
+## Códigos de respuesta de la aplicación
 
 | Code | Success | Mensaje (resumen)                                               | Acción sugerida                        |
 |-----:|:-------:|------------------------------------------------------------------|----------------------------------------|
@@ -123,6 +123,72 @@ Accept: application/json
 
 ---
 
+## Entidades Usuario y Paciente
+Es fundamental comprender esta relación para entender cómo funcionan la autenticación, la gestión de sesiones y el manejo del grupo familiar.
+
+### Conceptos Clave
+
+- **Usuario**: Entidad que representa una cuenta con credenciales de acceso (login/sesión)
+- **Paciente**: Entidad que representa una persona que puede recibir atención médica
+- **Paciente Titular**: El paciente principal asociado directamente con un usuario
+- **Grupo Familiar**: Conjunto de pacientes adicionales que el usuario puede gestionar
+
+---
+
+
+### Relación 1:1 entre Usuario y Paciente Titular
+Cada **Usuario** tiene asociado **exactamente un Paciente Titular**, pero un **Paciente puede existir sin Usuario** (en el caso de familiares).
+```
+Usuario (1) ─────► (1) Paciente Titular
+   │
+   └─────► (0..N) Pacientes Familiares
+```
+
+### Separación de Responsabilidades
+
+| Entidad | Responsabilidad |
+|---------|----------------|
+| **Usuario** | - Autenticación y autorización<br>- Gestión de sesión<br>- Credenciales (email, teléfono, contraseña)<br>- Tokens de validación<br>- Roles y permisos |
+| **Paciente** | - Datos demográficos<br>- Información médica<br>- Documentos de identidad<br>- Obras sociales/Planes de salud<br>- Turnos médicos |
+
+### Paciente Titular
+
+El **Paciente Titular** es el paciente principal asociado con la cuenta del usuario. Es quien:
+
+- Posee la cuenta de acceso (usuario)
+- Tiene control sobre su grupo familiar
+- Puede gestionar turnos propios y de sus familiares
+- Es el "holder" de la familia
+
+
+### Grupo Familiar
+El **Grupo Familiar** son pacientes adicionales que el usuario puede gestionar, además de su paciente titular. Estos pacientes:
+
+- **NO tienen usuario propio**
+- **NO pueden iniciar sesión**
+- Son gestionados por el usuario titular
+- Pueden tener turnos médicos
+- Tienen su propia información médica
+- Los pacientes de un grupo familiar no pueden repetir el DNI entre sí
+
+### Preguntas Frecuentes
+
+#### ¿Puede un paciente existir sin usuario específico?
+**Sí**, los pacientes del grupo familiar existen sin usuario propio. Solo el paciente titular tiene un usuario asociado.
+
+#### ¿Puede un usuario tener múltiples pacientes titulares?
+**No**, un usuario tiene exactamente un paciente titular.  Los demás pacientes son familiares gestionados por el paciente titular.
+
+#### ¿Cómo se identifica quién es el titular en un grupo familiar?
+En las APIs, el campo `is_holder` indica si el paciente es titular.
+
+#### ¿Los familiares pueden iniciar sesión?
+**No**, los familiares no tienen credenciales propias. Solo el usuario titular puede iniciar sesión y gestionar a sus familiares.
+
+#### ¿Se puede transferir un familiar a otro usuario?
+No, los familiares están vinculados permanentemente al paciente titular que los creó. Sin embargo, se puede crear un nuevo paciente con la misma información bajo otro usuario.
+---
+
 ## Buenas prácticas
 
 - **JWT corto:** expírelos a los 5 min. Recalcule `nbf` ~2 min antes de `iat` para tolerancia de reloj.
@@ -134,33 +200,124 @@ Accept: application/json
 ![Tipos de endpoints](docs/mt_api_dev/api_dev_categorias.png)
 
 ### Flujos de sesión de usuario
-![Flujos de sesión](docs/mt_api_dev/api_dev_flujos_sesion.png)
+```mermaid
+flowchart LR
+  A[Usuario intenta alguna accion] --> B[Prelogin: Existen usuario y sesión?]
 
+  B -->|No Codigo 100| C[Sign-up: Registrar usuario - envía token]
+
+  C --> D[Login: Iniciar sesion]
+
+  D --> E[Sesion iniciada]
+
+  E -->|Si Codigo 10| F[Realiza accion solicitada]
+
+  B -->|Si Codigo 110 111 - envía token| D
+
+  B -->|Si Codigo 10| F
+
+```
 
 ---
 
 ## Recetas rápidas
 
-### 1) Health check básico (sin JWT)
-```bash
-curl -sS GET "${API_URL}/dev/security/status"
+### 1) Flujo de login de Usuario
+El proceso de registro de un nuevo usuario sigue estos pasos:
+
+### 1. Pre-validación (Prelogin)
+Verificar si el usuario ya existe en el sistema antes de proceder con el registro.
+
+**Endpoint:** `POST /dev/security/prelogin`
+
+**Headers:**
+```
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
+```
+**Respuesta Exitosa (Usuario no existe):**
+```json
+{
+  "status": "success",
+  "message": "Usuario y sesion validos",
+  "code": 10
+}
+```
+### 2. Registro de Usuario (Sign-Up)
+Crear el nuevo usuario/paciente en el sistema.
+
+**Endpoint:** `POST /dev/security/sign-up`
+
+**Headers:**
+```
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
 ```
 
-### 2) Ping autenticado
-```bash
-curl -sS -X POST "${API_URL}/dev/security/ping" \
-  -H "Authorization: Bearer ${JWT}" \
-  -H "Content-Type: application/json" \
-  -d '{"value":"12345"}'
+**Body (JSON):**
+```json
+{
+  "username_email": "usuario@ejemplo.com",
+  "email": "usuario@ejemplo.com",
+  "password": "Password123!",
+  "password_repeat": "Password123!",
+  "first_name": "Juan",
+  "last_name": "Pérez",
+  "document_number": "12345678",
+  "document_type": 1,
+  "phone_number": "+541112345678",
+  "gender": 1,
+  "birthdate": "1990-05-15",
+  "social_security_plan_id": "uuid-obra-social",
+  "affiliate_number": "123456",
+  "accepted_policy_flag": true,
+  "policy_id": "uuid-politica",
+  "terms_id": "uuid-terminos"
+}
 ```
 
-### 3) Flujo de login de paciente
+**Campos Requeridos:**
+- `first_name` (string, max 50 caracteres)
+- `last_name` (string, max 50 caracteres)
+- `document_number` (integer, entre 1000000 y 100000000)
+- `document_type` (integer): 1 = DNI, 2 = RUT (según país)
+- `gender` (integer): 1 = Masculino, 2 = Femenino, 3 = Otro
+- `birthdate` (string, formato: YYYY-MM-DD)
+- `accepted_policy_flag` (boolean): Debe ser `true`
+- `redirectTo` (string): Normalmente "api" para apps
+
+**Campos Condicionales:**
+- Si se usa email: `username_email`, `email`, `password`, `password_repeat`
+- Si se usa teléfono: `username_phone_number`
+
+**Campos Opcionales:**
+- `social_security_plan_id` (uuid de obra social)
+- `affiliate_number` (número de afiliado)
+- `phone_number` (teléfono adicional)
+
+**Respuesta Exitosa:**
+```json
+{
+  "status": "success",
+  "data": "Usuario registrado exitosamente",
+  "message": "OK"
+}
+```
+
+### 4. Iniciar Sesión después del Registro
+Una vez registrado, el usuario debe completar el flujo de login (ver sección siguiente).
+
+---
+### 2) Flujo de Inicio de sesion de Usuario
+
 ```bash
 # 1) Enviar código de verificación
 curl -sS GET "${API_URL}/dev/security/prelogin" \
   -H "Authorization: Bearer ${JWT_CON_USERNAME}"
+```
 
-# 2) Confirmar código recibido por el paciente
+```bash
+# 2) Confirmar código recibido por el usuario
 curl -sS -X POST "${API_URL}/dev/security/login" \
   -H "Authorization: Bearer ${JWT_CON_USERNAME}" \
   -H "Content-Type: application/json" \
@@ -563,64 +720,6 @@ curl -sS -X POST "${API_URL}/dev/security/ping" \
 ```
 **Respuesta:** `message: "true" | "false"` según resultado.
 
----
-
-### Módulo Notificaciones
-
-> Integración con recordatorios por **WhatsApp** y confirmaciones/cancelaciones fuera del flujo web.
-
-#### `POST /notifications/{notification_id}`
-**Descripción:** Confirmar/cancelar/otros estados de una notificación.  
-**Body:**
-```json
-{
-  "method":"confirm",     // "confirm" | "cancel" | "unsubscribe" | "not_sent"
-  "comment":"confirmo el turno de mañana"
-}
-```
-**JWT especial (ejemplo):**
-```json
-{
-  "iss": "MRTURNO_SERVICIO_NOTIFICATIONS",
-  "sub": "servicio/mrturno",
-  "iat": 1663084684,
-  "nbf": 1663084564,
-  "exp": 1673084984,
-  "institution_id": "4f5ce136-6cee-11ed-9b43-0aa09875696d",
-  "username": "soporte@mrturno.com",
-  "developer_channel_name": "servicio_whatsapp"
-}
-```
-
----
-
-#### `POST /notifications/get-turn-notifications-by-institution`
-**Descripción:** Devuelve notificaciones pendientes para una institución y fecha dadas.  
-**Body:**
-```json
-{
-  "institution_subsidiary_id":"ae110249-82f1-11ee-9e19-0242ac120003",
-  "notification_date":"2023-11-30"
-}
-```
-**Respuesta (`results`):**
-```json
-[{
-  "id": "08977aed-8edc-11ee-a97f-0242ac145473",
-  "external_turn_id": "1e18f216-8eaf-11ee-9495-0a394db502dd",
-  "patient_first_name": "Agustin",
-  "patient_last_name": "GIORLANDO BARDARO",
-  "patient_phone_number": "+5492612189550",
-  "professional_first_name": "NO TOCAR",
-  "professional_last_name": "MRTURNO PRUEBAS",
-  "professional_specialty_name": "CLINICA MEDICA",
-  "turn_date": "2023-11-30",
-  "turn_hour": "10:30:00",
-  "turn_comment_to_patient": "<p>…</p>"
-}]
-```
-
----
 
 ## Glosario
 
