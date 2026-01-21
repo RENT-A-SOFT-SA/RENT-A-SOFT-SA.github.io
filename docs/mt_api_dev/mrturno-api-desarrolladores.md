@@ -199,132 +199,29 @@ No, los familiares están vinculados permanentemente al paciente titular que los
 
 ![Tipos de endpoints](docs/mt_api_dev/api_dev_categorias.png)
 
-### Flujos de sesión de usuario
-```mermaid
-flowchart LR
-  A[Usuario intenta alguna accion] --> B[Prelogin: Existen usuario y sesión?]
+## Flujos de sesión de usuario
+![Flujos de sesión](docs/mt_api_dev/flujo_sesion.png)
 
-  B -->|No Codigo 100| C[Sign-up: Registrar usuario - envía token]
-
-  C --> D[Login: Iniciar sesion]
-
-  D --> E[Sesion iniciada]
-
-  E -->|Si Codigo 10| F[Realiza accion solicitada]
-
-  B -->|Si Codigo 110 111 - envía token| D
-
-  B -->|Si Codigo 10| F
-
-```
-
----
 
 ## Recetas rápidas
 
-### 1) Flujo de login de Usuario
+### Flujo de Nuevo Usuario
 El proceso de registro de un nuevo usuario sigue estos pasos:
 
-### 1. Pre-validación (Prelogin)
+#### 1. Pre-validación (Prelogin)
 Verificar si el usuario ya existe en el sistema antes de proceder con el registro.
 
 **Endpoint:** `POST /dev/security/prelogin`
 
-**Headers:**
-```
-Authorization: Bearer YOUR_JWT_TOKEN
-Content-Type: application/json
-```
-**Respuesta Exitosa (Usuario no existe):**
-```json
-{
-  "status": "success",
-  "message": "Usuario y sesion validos",
-  "code": 10
-}
-```
-### 2. Registro de Usuario (Sign-Up)
-Crear el nuevo usuario/paciente en el sistema.
+#### 2. Registro de Usuario (Sign-Up)
+Crear el nuevo usuario en el sistema.
 
 **Endpoint:** `POST /dev/security/sign-up`
 
-**Headers:**
-```
-Authorization: Bearer YOUR_JWT_TOKEN
-Content-Type: application/json
-```
+#### 3. Iniciar Sesión después del Registro
+Una vez registrado, automaticamente se inicia el flujo de login enviando el token de 6 digitos al usuario. Cuando el usuario lo proporciona, se completa el login con:
 
-**Body (JSON):**
-```json
-{
-  "username_email": "usuario@ejemplo.com",
-  "email": "usuario@ejemplo.com",
-  "password": "Password123!",
-  "password_repeat": "Password123!",
-  "first_name": "Juan",
-  "last_name": "Pérez",
-  "document_number": "12345678",
-  "document_type": 1,
-  "phone_number": "+541112345678",
-  "gender": 1,
-  "birthdate": "1990-05-15",
-  "social_security_plan_id": "uuid-obra-social",
-  "affiliate_number": "123456",
-  "accepted_policy_flag": true,
-  "policy_id": "uuid-politica",
-  "terms_id": "uuid-terminos"
-}
-```
-
-**Campos Requeridos:**
-- `first_name` (string, max 50 caracteres)
-- `last_name` (string, max 50 caracteres)
-- `document_number` (integer, entre 1000000 y 100000000)
-- `document_type` (integer): 1 = DNI, 2 = RUT (según país)
-- `gender` (integer): 1 = Masculino, 2 = Femenino, 3 = Otro
-- `birthdate` (string, formato: YYYY-MM-DD)
-- `accepted_policy_flag` (boolean): Debe ser `true`
-- `redirectTo` (string): Normalmente "api" para apps
-
-**Campos Condicionales:**
-- Si se usa email: `username_email`, `email`, `password`, `password_repeat`
-- Si se usa teléfono: `username_phone_number`
-
-**Campos Opcionales:**
-- `social_security_plan_id` (uuid de obra social)
-- `affiliate_number` (número de afiliado)
-- `phone_number` (teléfono adicional)
-
-**Respuesta Exitosa:**
-```json
-{
-  "status": "success",
-  "data": "Usuario registrado exitosamente",
-  "message": "OK"
-}
-```
-
-### 4. Iniciar Sesión después del Registro
-Una vez registrado, el usuario debe completar el flujo de login (ver sección siguiente).
-
----
-### 2) Flujo de Inicio de sesion de Usuario
-
-```bash
-# 1) Enviar código de verificación
-curl -sS GET "${API_URL}/dev/security/prelogin" \
-  -H "Authorization: Bearer ${JWT_CON_USERNAME}"
-```
-
-```bash
-# 2) Confirmar código recibido por el usuario
-curl -sS -X POST "${API_URL}/dev/security/login" \
-  -H "Authorization: Bearer ${JWT_CON_USERNAME}" \
-  -H "Content-Type: application/json" \
-  -d '{"token":"123456"}'
-```
-
----
+**Endpoint:** `POST /dev/security/login`
 
 ## Referencia de API
 
