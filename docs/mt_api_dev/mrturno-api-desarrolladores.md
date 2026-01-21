@@ -133,8 +133,6 @@ Es fundamental comprender esta relación para entender cómo funcionan la autent
 - **Paciente Titular**: El paciente principal asociado directamente con un usuario
 - **Grupo Familiar**: Conjunto de pacientes adicionales que el usuario puede gestionar
 
----
-
 
 ### Relación 1:1 entre Usuario y Paciente Titular
 Cada **Usuario** tiene asociado **exactamente un Paciente Titular**, pero un **Paciente puede existir sin Usuario** (en el caso de familiares).
@@ -187,6 +185,7 @@ En las APIs, el campo `is_holder` indica si el paciente es titular.
 
 #### ¿Se puede transferir un familiar a otro usuario?
 No, los familiares están vinculados permanentemente al paciente titular que los creó. Sin embargo, se puede crear un nuevo paciente con la misma información bajo otro usuario.
+
 ---
 
 ## Buenas prácticas
@@ -202,7 +201,7 @@ No, los familiares están vinculados permanentemente al paciente titular que los
 ## Flujos de sesión de usuario
 ![Flujos de sesión](docs/mt_api_dev/flujo_sesion.png)
 
-
+--- 
 ## Recetas rápidas
 
 ### Flujo de Nuevo Usuario
@@ -222,6 +221,8 @@ Crear el nuevo usuario en el sistema.
 Una vez registrado, automaticamente se inicia el flujo de login enviando el token de 6 digitos al usuario. Cuando el usuario lo proporciona, se completa el login con:
 
 **Endpoint:** `POST /dev/security/login`
+
+--- 
 
 ## Referencia de API
 
