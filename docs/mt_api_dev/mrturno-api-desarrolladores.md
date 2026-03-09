@@ -291,12 +291,23 @@ curl -sS -X POST "${API_URL}/dev/security/ping" \
 ---
 
 #### `POST /security/associate-to-account`
-**Descripción:** Asocia un **email** verificado a un usuario para su número de teléfono actual.  
+**Descripción:** Vincula un teléfono todavía no asociado con una cuenta existente cuyo email ya fue validado. Asocia un **email** verificado a un usuario para su número de teléfono actual.  
+
+**Validaciones:** Para que esta operación sea exitosa, el email debe existir en el sistema y no estar asociado a otro teléfono. Para esto se realizan dos pruebas de control:
+- Control del email: se manda un link al email de la cuenta destino.
+- Control del teléfono: luego de hacer click en ese link, se envía un código al teléfono y ese código debe validarse.
+
+**Proceso de asociación:**
+1. El usuario inicia el proceso desde este endpoint.
+2. Se envía un email a la dirección proporcionada con un link de validación.
+3. El usuario hace click en el link, lo que activa el envío de un código al teléfono del JWT (via whatsapp).
+4. El usuario recibe el código en su teléfono y lo ingresa para completar la asociación.
+5. El codigo se usa en el endpoint `POST /security/login` para finalizar la asociación del email con el teléfono y al mismo tiempo obtener la sesion iniciada para continuar.
+
 **Body:**
 ```json
 { "email": "user@example.com" }
 ```
-**Errores:** 160 (email ya utilizado).
 
 ---
 
