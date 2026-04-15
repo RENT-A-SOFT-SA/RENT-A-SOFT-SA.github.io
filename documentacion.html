@@ -248,6 +248,7 @@
                     if (api.format === 'md' || api.path.endsWith('.md') || api.path.endsWith('.markdown')) {
                         docContent.innerHTML = marked.parse(rawContent);
                         styleEndpoints();
+                        styleBlockquotes();
                         applyHighlighting();
                         addCopyButtons();
                         buildTOC();
@@ -313,6 +314,21 @@
                     });
                 });
                 pre.appendChild(btn);
+            });
+        }
+
+        function styleBlockquotes() {
+            const WARNING_RE = /requiere[n]?|HTTP\s*200|success\s*=\s*false|debe[n]?|obligatorio|atenci[oó]n|importante/i;
+
+            docContent.querySelectorAll('blockquote').forEach(bq => {
+                const isWarning = WARNING_RE.test(bq.textContent);
+
+                const icon = document.createElement('span');
+                icon.className = 'callout-icon';
+                icon.textContent = isWarning ? '⚠️' : 'ℹ️';
+
+                bq.classList.add('callout', isWarning ? 'callout--warning' : 'callout--info');
+                bq.prepend(icon);
             });
         }
 

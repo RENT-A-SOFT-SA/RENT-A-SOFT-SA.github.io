@@ -18,7 +18,7 @@ Casos de uso principales:
 
 ## Ambientes y URLs
 
-- **Alpha (testing):** `https://api.alpha.mrturno.com/dev/`
+- **Alpha (testing):** `https://alpha-api.mrturno.com/dev/`
 - **Producción:** `https://api.mrturno.com/dev/`
 
 Todas las peticiones son REST con `Content-Type: application/json` y se transmiten sobre HTTPS.
@@ -302,7 +302,7 @@ Authorization: Bearer <YOUR_API_TOKEN>
 ### 1) Obtener notificaciones del día
 
 ```bash
-curl -X POST "https://api.alpha.mrturno.com/dev/notifications/get-turn-notifications-by-institution" \
+curl -X POST "https://alpha-api.mrturno.com/dev/notifications/get-turn-notifications-by-institution" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -314,7 +314,7 @@ curl -X POST "https://api.alpha.mrturno.com/dev/notifications/get-turn-notificat
 ### 2) Registrar respuesta (confirmar)
 
 ```bash
-curl -X POST "https://api.alpha.mrturno.com/dev/notifications/respond-notification" \
+curl -X POST "https://alpha-api.mrturno.com/dev/notifications/respond-notification" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
