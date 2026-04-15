@@ -6,7 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Centro de Documentación | RENT-A-SOFT-SA</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="vendor/atom-one-dark.min.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="vendor/highlight.min.js"></script>
 </head>
 
 <body class="docs-body">
@@ -35,6 +37,7 @@
                 <p>Explora nuestras APIs organizadas por producto y accede a su documentación oficial.</p> -->
             </div>
             <div id="docs-catalog" class="catalog"></div>
+            <div id="doc-toc" class="toc-container"></div>
         </aside>
 
         <section class="docs-viewer" aria-label="Visor de documentación">
@@ -162,6 +165,7 @@
         const viewerMeta = document.getElementById('viewer-meta');
         const docContent = document.getElementById('doc-content');
         let activeButton = null;
+        let tocScrollHandler = null;
 
         function createCatalog() {
             documentationCatalog.forEach(group => {
@@ -219,6 +223,14 @@
             if (!isInitialLoad) {
                 docContent.innerHTML = '<p class="loading">Cargando documentación…</p>';
             }
+            // Limpiar TOC del documento anterior
+            const tocEl = document.getElementById('doc-toc');
+            tocEl.style.display = 'none';
+            tocEl.innerHTML = '';
+            if (tocScrollHandler) {
+                window.removeEventListener('scroll', tocScrollHandler);
+                tocScrollHandler = null;
+            }
             viewerTitle.textContent = api.name;
             viewerMeta.innerHTML = `
                 <span class="meta-item">${productName}</span>
@@ -234,12 +246,11 @@
                 })
                 .then(rawContent => {
                     if (api.format === 'md' || api.path.endsWith('.md') || api.path.endsWith('.markdown')) {
-                        // Configurar marked para generar IDs automáticamente en los encabezados
-                        marked.setOptions({
-                            headerIds: true,
-                            mangle: false
-                        });
                         docContent.innerHTML = marked.parse(rawContent);
+                        styleEndpoints();
+                        applyHighlighting();
+                        addCopyButtons();
+                        buildTOC();
                     } else {
                         const parser = new DOMParser();
                         const parsed = parser.parseFromString(rawContent, 'text/html');
@@ -257,6 +268,168 @@
                 buttonElement.classList.add('catalog-item--active');
                 activeButton = buttonElement;
             }
+        }
+
+        const COPY_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+        const CHECK_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+        function applyHighlighting() {
+            docContent.querySelectorAll('pre code').forEach(block => {
+                hljs.highlightElement(block);
+            });
+        }
+
+        function addCopyButtons() {
+            docContent.querySelectorAll('pre').forEach(pre => {
+                const btn = document.createElement('button');
+                btn.className = 'copy-btn';
+                btn.innerHTML = COPY_ICON;
+                btn.title = 'Copiar código';
+                btn.addEventListener('click', () => {
+                    const code = pre.querySelector('code');
+                    const text = (code ? code.textContent : pre.textContent).trim();
+                    navigator.clipboard.writeText(text).then(() => {
+                        btn.innerHTML = CHECK_ICON;
+                        btn.classList.add('copy-btn--success');
+                        setTimeout(() => {
+                            btn.innerHTML = COPY_ICON;
+                            btn.classList.remove('copy-btn--success');
+                        }, 2000);
+                    }).catch(() => {
+                        // Fallback para navegadores sin clipboard API
+                        const ta = document.createElement('textarea');
+                        ta.value = text;
+                        ta.style.cssText = 'position:fixed;opacity:0';
+                        document.body.appendChild(ta);
+                        ta.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(ta);
+                        btn.innerHTML = CHECK_ICON;
+                        btn.classList.add('copy-btn--success');
+                        setTimeout(() => {
+                            btn.innerHTML = COPY_ICON;
+                            btn.classList.remove('copy-btn--success');
+                        }, 2000);
+                    });
+                });
+                pre.appendChild(btn);
+            });
+        }
+
+        function styleEndpoints() {
+            const METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
+            const headings = Array.from(docContent.querySelectorAll('h3, h4'));
+
+            headings.forEach(heading => {
+                const codes = Array.from(heading.querySelectorAll('code'));
+                let isEndpoint = false;
+
+                codes.forEach(code => {
+                    const text = code.textContent.trim();
+                    const method = METHODS.find(m => text === m || text.startsWith(m + ' ') || text.startsWith(m + '/'));
+                    if (!method) return;
+
+                    isEndpoint = true;
+                    const path = text.slice(method.length).trim();
+
+                    const badge = document.createElement('span');
+                    badge.className = 'http-badge http-badge--' + method.toLowerCase();
+                    badge.textContent = method;
+
+                    code.textContent = '';
+                    code.classList.add('endpoint-code');
+                    code.appendChild(badge);
+
+                    if (path) {
+                        const pathSpan = document.createElement('span');
+                        pathSpan.className = 'http-path';
+                        pathSpan.textContent = path;
+                        code.appendChild(pathSpan);
+                    }
+                });
+
+                if (isEndpoint) heading.classList.add('endpoint-heading');
+            });
+        }
+
+        function slugify(text) {
+            return text.toLowerCase()
+                .replace(/[^\w\s-]/g, '')
+                .trim()
+                .replace(/\s+/g, '-') || 'section';
+        }
+
+        function buildTOC() {
+            const tocEl = document.getElementById('doc-toc');
+            const headings = Array.from(docContent.querySelectorAll('h2, h3'));
+
+            if (headings.length < 2) {
+                tocEl.style.display = 'none';
+                return;
+            }
+
+            // Asegurar ID único en cada heading
+            const used = {};
+            headings.forEach(h => {
+                if (!h.id) {
+                    let base = slugify(h.textContent);
+                    let id = base, n = 2;
+                    while (used[id]) id = base + '-' + (n++);
+                    h.id = id;
+                }
+                used[h.id] = true;
+            });
+
+            // Construir header del TOC
+            const label = document.createElement('p');
+            label.className = 'toc-header';
+            label.textContent = 'En esta página';
+
+            // Construir lista de links
+            const nav = document.createElement('nav');
+            nav.className = 'toc-list';
+            nav.setAttribute('aria-label', 'Índice del documento');
+
+            headings.forEach(h => {
+                const a = document.createElement('a');
+                a.href = '#' + h.id;
+                a.className = 'toc-link toc-link--' + h.tagName.toLowerCase();
+                a.textContent = h.textContent;
+                a.addEventListener('click', e => {
+                    e.preventDefault();
+                    document.getElementById(h.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+                nav.appendChild(a);
+            });
+
+            tocEl.innerHTML = '';
+            tocEl.appendChild(label);
+            tocEl.appendChild(nav);
+            tocEl.style.display = 'block';
+
+            // Resaltar sección activa según posición de scroll
+            const links = Array.from(nav.querySelectorAll('.toc-link'));
+            function updateActive() {
+                const offset = 96;
+                let active = headings[0];
+                for (const h of headings) {
+                    if (h.getBoundingClientRect().top <= offset) active = h;
+                }
+                links.forEach(l => l.classList.toggle(
+                    'toc-link--active',
+                    l.getAttribute('href') === '#' + active?.id
+                ));
+            }
+
+            let ticking = false;
+            tocScrollHandler = () => {
+                if (!ticking) {
+                    requestAnimationFrame(() => { updateActive(); ticking = false; });
+                    ticking = true;
+                }
+            };
+            window.addEventListener('scroll', tocScrollHandler, { passive: true });
+            updateActive();
         }
 
         function findApiById(id) {

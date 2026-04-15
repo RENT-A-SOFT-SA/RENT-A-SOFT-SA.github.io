@@ -189,6 +189,7 @@
 .docs-layout {
     display: grid;
     grid-template-columns: minmax(240px, 320px) 1fr;
+    align-items: start;
     gap: 2.5rem;
     padding: clamp(1.5rem, 4vw, 3rem) clamp(1.5rem, 4vw, 4rem);
     max-width: 1400px;
@@ -205,6 +206,12 @@
     gap: 1.5rem;
     box-shadow: 0 12px 24px var(--shadow-light);
     transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    position: sticky;
+    top: 80px;
+    max-height: calc(100vh - 96px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-primary) transparent;
 }
 
 .sidebar-intro h2 {
@@ -410,10 +417,12 @@
 
 .viewer-content h1,
 .viewer-content h2,
-.viewer-content h3 {
+.viewer-content h3,
+.viewer-content h4 {
     color: var(--text-primary);
     margin-top: 1.75rem;
     margin-bottom: 0.75rem;
+    scroll-margin-top: 88px;
 }
 
 .viewer-content pre {
@@ -426,14 +435,8 @@
     white-space: pre-wrap;
     word-wrap: break-word;
     max-width: 100%;
+    position: relative;
     transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-/* Forzar color blanco para todo el texto en bloques de código */
-.viewer-content pre,
-.viewer-content pre *,
-.viewer-content pre code {
-    color: #ffffff !important;
 }
 
 .viewer-content code {
@@ -452,7 +455,12 @@
     padding: 0;
     white-space: pre-wrap;
     word-wrap: break-word;
-    color: #ffffff !important;
+}
+
+/* highlight.js: fondo transparente para respetar el pre existente */
+.viewer-content .hljs {
+    background: transparent;
+    padding: 0;
 }
 
 .viewer-content table {
@@ -502,14 +510,36 @@
 }
 
 .viewer-content blockquote {
-    margin: 1.5rem 0;
-    padding-left: 1rem;
-    border-left: 4px solid var(--border-primary);
-    color: var(--text-muted);
-    font-style: italic;
+    position: relative;
+    margin: 1.75rem 0;
+    padding: 0.85rem 1rem 0.85rem 2.75rem;
+    border-left: 3px solid #d97706;
+    background-color: rgba(217, 119, 6, 0.08);
+    border-radius: 0 8px 8px 0;
+    color: var(--text-secondary);
+    font-style: normal;
     word-wrap: break-word;
     overflow-wrap: break-word;
-    transition: border-color 0.3s ease, color 0.3s ease;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+[data-theme="dark"] .viewer-content blockquote {
+    background-color: rgba(217, 119, 6, 0.12);
+}
+
+.viewer-content blockquote::before {
+    content: 'ℹ️';
+    position: absolute;
+    left: 0.75rem;
+    top: 0.85rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    font-style: normal;
+}
+
+.viewer-content blockquote p {
+    margin: 0;
+    line-height: 1.6;
 }
 
 .viewer-content img {
@@ -567,6 +597,7 @@
     .docs-sidebar {
         position: static;
         max-height: none;
+        overflow-y: unset;
         margin-bottom: 1rem;
     }
     
@@ -1028,6 +1059,159 @@
         word-wrap: break-word;
         white-space: pre-wrap;
     }
+}
+
+/* ==============================
+   Botón copiar en bloques de código
+   ============================== */
+.copy-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background-color: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.viewer-content pre:hover .copy-btn {
+    opacity: 1;
+}
+
+.copy-btn:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.copy-btn--success {
+    opacity: 1 !important;
+    background-color: rgba(22, 163, 74, 0.25);
+    border-color: rgba(22, 163, 74, 0.5);
+    color: #86efac;
+}
+
+@media (hover: none) {
+    /* En touch, mostrar siempre visible */
+    .copy-btn { opacity: 1; }
+}
+
+/* ==============================
+   HTTP method badges — endpoints
+   ============================== */
+.http-badge {
+    display: inline-block;
+    font-family: "Fira Code", "SFMono-Regular", ui-monospace, monospace;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 0.18rem 0.55rem;
+    border-radius: 4px;
+    flex-shrink: 0;
+    color: #fff;
+}
+
+.http-badge--get    { background-color: #16a34a; }
+.http-badge--post   { background-color: #2563eb; }
+.http-badge--put    { background-color: #d97706; }
+.http-badge--patch  { background-color: #7c3aed; }
+.http-badge--delete { background-color: #dc2626; }
+
+.endpoint-code {
+    background: none !important;
+    padding: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.http-path {
+    font-family: "Fira Code", "SFMono-Regular", ui-monospace, monospace;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    word-break: break-all;
+}
+
+.viewer-content .endpoint-heading {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.55rem 0.9rem;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-secondary);
+    border-radius: 8px;
+    margin-top: 2rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* ==============================
+   TOC — índice en el sidebar
+   ============================== */
+.toc-container {
+    border-top: 1px solid var(--border-secondary);
+    padding-top: 1.25rem;
+    display: none;
+}
+
+.toc-header {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--text-light);
+    font-weight: 600;
+    margin-bottom: 0.6rem;
+    padding: 0 0.25rem;
+    transition: color 0.3s ease;
+}
+
+.toc-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.toc-link {
+    display: block;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 0.28rem 0.6rem;
+    border-left: 2px solid transparent;
+    border-radius: 0 6px 6px 0;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.toc-link:hover {
+    color: var(--text-primary);
+    background-color: var(--bg-tertiary);
+}
+
+.toc-link--h3 {
+    padding-left: 1.25rem;
+    font-size: 0.78rem;
+}
+
+.toc-link--active {
+    color: var(--accent-secondary);
+    border-left-color: var(--accent-primary);
+    background-color: var(--bg-tertiary);
+    font-weight: 500;
 }
 
 /* ==============================
