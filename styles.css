@@ -458,6 +458,7 @@
 
 .viewer-content pre code {
     background: none;
+    color: var(--code-text);
     padding: 0;
     white-space: pre-wrap;
     word-wrap: break-word;
