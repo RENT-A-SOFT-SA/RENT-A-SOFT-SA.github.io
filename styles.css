@@ -17,8 +17,8 @@
     --shadow-light: rgba(15, 23, 42, 0.05);
     --shadow-medium: rgba(15, 23, 42, 0.08);
     --shadow-heavy: rgba(15, 23, 42, 0.15);
-    --code-bg: #0f172a;
-    --code-text: #ffffff;
+    --code-bg: #f1f5f9;
+    --code-text: #1e293b;
 }
 
 /* Tema oscuro */
@@ -468,6 +468,39 @@
 .viewer-content .hljs {
     background: transparent;
     padding: 0;
+}
+
+/* Overrides de legibilidad para tema claro en highlight.js */
+:root:not([data-theme="dark"]) .viewer-content code {
+    background-color: #e2e8f0;
+    color: #0f172a;
+}
+
+:root:not([data-theme="dark"]) .viewer-content pre code,
+:root:not([data-theme="dark"]) .viewer-content pre code.hljs {
+    color: #1e293b;
+}
+
+:root:not([data-theme="dark"]) .viewer-content pre code .hljs-keyword,
+:root:not([data-theme="dark"]) .viewer-content pre code .hljs-selector-tag,
+:root:not([data-theme="dark"]) .viewer-content pre code .hljs-literal {
+    color: #4338ca;
+}
+
+:root:not([data-theme="dark"]) .viewer-content pre code .hljs-string,
+:root:not([data-theme="dark"]) .viewer-content pre code .hljs-attr {
+    color: #166534;
+}
+
+:root:not([data-theme="dark"]) .viewer-content pre code .hljs-number,
+:root:not([data-theme="dark"]) .viewer-content pre code .hljs-symbol,
+:root:not([data-theme="dark"]) .viewer-content pre code .hljs-bullet {
+    color: #b45309;
+}
+
+:root:not([data-theme="dark"]) .viewer-content pre code .hljs-comment,
+:root:not([data-theme="dark"]) .viewer-content pre code .hljs-quote {
+    color: #475569;
 }
 
 .viewer-content table {
