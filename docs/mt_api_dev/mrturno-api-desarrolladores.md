@@ -404,7 +404,14 @@ curl -sS -X POST "${API_URL}/dev/security/ping" \
 ---
 
 #### `GET /institution/professionals/subsidiary/{subsidiary_id}`
-**Descripción:** Profesionales que atienden en una sucursal.  
+**Descripción:** Profesionales que atienden en una sucursal. Por defecto devuelve solo los profesionales con turno online habilitado.
+
+**Query params opcionales:**
+
+| Parámetro | Tipo | Default | Descripción |
+|---|---|---|---|
+| `include_without_online` | boolean (0/1) | `0` | Si se envía `1`, incluye también los profesionales sin turno online |
+
 **Respuesta (`results`):**
 ```json
 [{
@@ -415,9 +422,12 @@ curl -sS -X POST "${API_URL}/dev/security/ping" \
   "enrolment_number": "1",
   "specialty_name": "clínica médica",
   "calendar_description": "lunes a domingo 08:00–12:00",
-  "professional_patient_comment": "comentario del profesional"
+  "professional_patient_comment": "comentario del profesional",
+  "has_turn_online_enabled": true
 }]
 ```
+
+> Los profesionales devueltos con `include_without_online=1` no tienen turnos online disponibles. Este flag es útil para mostrar el plantel completo de profesionales de la institución (por ejemplo, en un directorio o listado informativo), pero **no deben usarse para solicitar turnos** — el módulo de Turnos solo opera con profesionales que tienen turno online habilitado.
 
 ---
 
