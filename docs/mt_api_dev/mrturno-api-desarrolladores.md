@@ -412,6 +412,18 @@ curl -sS -X POST "${API_URL}/dev/security/ping" \
 |---|---|---|---|
 | `include_without_online` | boolean (0/1) | `0` | Si se envía `1`, incluye también los profesionales sin turno online |
 
+**cURL (sin el parámetro — comportamiento por defecto):**
+```bash
+curl -sS -X GET "${API_URL}/dev/institution/professionals/subsidiary/{subsidiary_id}" \
+  -H "Authorization: Bearer ${JWT}"
+```
+
+**cURL (incluyendo profesionales sin turno online):**
+```bash
+curl -sS -X GET "${API_URL}/dev/institution/professionals/subsidiary/{subsidiary_id}?include_without_online=1" \
+  -H "Authorization: Bearer ${JWT}"
+```
+
 **Respuesta (`results`):**
 ```json
 [{
