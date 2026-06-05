@@ -263,7 +263,7 @@ curl -sS -X POST "${API_URL}/dev/security/ping" \
 
 ---
 
-#### `POST /security/prelogin`
+#### `GET /security/prelogin`
 **Descripción:** Inicia login del paciente. Envía código de verificación (email/Whatsapp).  
 **Requiere:** JWT **con `username` y `developer_channel_name`**.  
 **Respuestas:** utilizar tabla de **códigos** (110/111, etc.).
