@@ -210,7 +210,7 @@ El proceso de registro de un nuevo usuario sigue estos pasos:
 #### 1. Pre-validación (Prelogin)
 Verificar si el usuario ya existe en el sistema antes de proceder con el registro.
 
-**Endpoint:** `POST /dev/security/prelogin`
+**Endpoint:** `GET /dev/security/prelogin`
 
 #### 2. Registro de Usuario (Sign-Up)
 Crear el nuevo usuario en el sistema.
