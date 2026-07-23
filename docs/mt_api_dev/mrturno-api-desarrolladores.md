@@ -461,11 +461,13 @@ curl -sS -X GET "${API_URL}/dev/institution/professionals/subsidiary/{subsidiary
   "social_security_plan_name": "OSDE - 210",
   "affiliate_type": "obligatorio",
   "affiliate_number": "123",
-  "is_holder": true
+  "is_holder": true,
+  "gender": "Masculino"
 }
 
 ```
-**is_holder** indica si el paciente es titular o familiar.
+**is_holder** indica si el paciente es titular o familiar.  
+**gender** es el sexo del paciente en texto (`Masculino`, `Femenino`, `Otro`, o `null` si no tiene sexo cargado). A diferencia del campo `gender` que se envía como **código numérico** en el body de `POST /patients/add-kinship` (ver catálogo más abajo), en las respuestas siempre viaja como **texto**.
 
 ---
 
@@ -483,7 +485,8 @@ curl -sS -X GET "${API_URL}/dev/institution/professionals/subsidiary/{subsidiary
   "social_security_plan_name": "OSDE - 210",
   "affiliate_type": "obligatorio",
   "affiliate_number": "123",
-  "is_holder": true
+  "is_holder": true,
+  "gender": "Masculino"
 }
 ```
 
