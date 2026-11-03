@@ -1,0 +1,654 @@
+openapi: 3.0.3
+info:
+  title: MrTurno DEV-API v2
+  version: 2.1.0
+  description: |
+    Superficie v2 de la API de desarrolladores de MrTurno. La usan los servicios dados de alta para la v2. Un servicio v2 no puede usar las rutas v1 (`/dev/...`) y un servicio v1 no puede
+    usar estas.
+
+    **Autenticación.** JWT RS256 firmado por el integrador en `Authorization: Bearer`. Claims: `iss`, `sub`, `iat`,
+    `nbf`, `exp` (5 minutos), `institution_id`, `developer_channel_name` y, para operar sobre un paciente con sesión,
+    `username` (teléfono en E.164 con `+`, o email).
+
+    **Envelope.** Toda respuesta es `{success, message, count, results, code}`. Los errores de negocio responden
+    HTTP 200 con `success: false` y el `code` correspondiente; 401 (token) y 429 (rate limit) son HTTP reales.
+
+    **Rate limit.** 100 pedidos por minuto por servicio e institución (429 con `Retry-After: 60`), más el límite
+    diario que se configure por institución.
+
+    **Ids.** Sede, profesional, especialidad, plan federado, paciente y turno son ids de MrTurno. `practice_id` y
+    `clinical_plan_id` son ids de RAS Salud: salen de `GET /institution/practices` y de
+    `GET /institution/social-security-plans/clinical`.
+
+    **`practice_id` es de CADA clínica.** Es el id de la práctica en el sistema de esa clínica, no un código global:
+    la misma prestación tiene un `practice_id` distinto en cada clínica, y un `practice_id` de una clínica no sirve
+    en otra (`institution_id` del token). Sincronizalo por clínica.
+
+    **Prestación federada (2.1).** `federated_practice_code` (por ejemplo `RAS-IMG-0003`, «Radiografía de muñeca») es
+    un código común a todas las clínicas de RAS. `GET /institution/practices` lo trae en cada práctica, con el nombre y
+    los términos con que lo dice el paciente («placa de muñeca»). Para buscar por prestación mandá
+    `federated_practice_code` a `POST /turns/free-turn-slots`: cada agenda resuelve en su clínica qué práctica
+    corresponde (puede cambiar por sede o por médico) y el grupo devuelve el `practice_id` con el que se reserva. Al
+    reservar se manda ese `practice_id`. Solo aparecen las prestaciones que la clínica habilitó para turnos online.
+
+    **Mensajes al paciente (2.1).** Cada grupo de la agenda trae `patient_messages`: indicaciones que la clínica
+    aprobó para el paciente (preparación, qué traer). Mostralas tal cual antes de reservar. Nunca traen datos
+    internos de la clínica.
+
+    **Edad (2.1).** Sin paciente con sesión, mandá `patient_birthdate` en la agenda: la clínica evalúa con esa fecha
+    las reglas por edad (por ejemplo, una agenda solo pediátrica).
+
+    **El código de práctica (`code`) es interno.** Es el código con el que la clínica factura o nomencla la práctica.
+    Sirve para conciliar, no se le muestra al paciente: al paciente se le muestra `name`.
+
+    **Campos desconocidos.** La API ignora los campos del pedido que no conoce: no los rechaza ni responde error.
+    Del mismo modo, el integrador tiene que ignorar los campos de la respuesta que no conozca. El contrato crece
+    sumando campos opcionales (por ejemplo, los de la 2.1) sin romper a quien todavía no los usa.
+servers:
+  - url: https://alpha-api.mrturno.com/dev/v2
+    description: Alpha
+  - url: https://api.mrturno.com/dev/v2
+    description: Producción
+security:
+  - bearerAuth: []
+tags:
+  - name: Seguridad
+  - name: Institución
+  - name: Turnos
+  - name: Pacientes
+  - name: Gestores
+  - name: Notificaciones
+paths:
+  /security/ping:
+    post:
+      tags: [Seguridad]
+      summary: Verifica servicio y autenticación
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, properties: {value: {type: string}}}
+      responses: {'200': {$ref: '#/components/responses/Envelope'}}
+  /security/prelogin:
+    get:
+      tags: [Seguridad]
+      summary: Estado del usuario del claim username; si no tiene sesión en el canal, envía el código
+      description: |
+        Códigos: 10 usuario y sesión válidos · 100 no existe (registrarlo con sign-up) · 110 / 111 código enviado
+        por email / WhatsApp (seguir con login) · 140 el usuario no tiene paciente titular. Es el único endpoint,
+        junto con sign-up, que envía un código. La sesión es por usuario y canal.
+      responses: {'200': {$ref: '#/components/responses/Envelope'}}
+  /security/user-status:
+    get:
+      tags: [Seguridad]
+      summary: Igual que prelogin pero sin enviar código (150 si no hay sesión)
+      responses: {'200': {$ref: '#/components/responses/Envelope'}}
+  /security/sign-up:
+    post:
+      tags: [Seguridad]
+      summary: Alta del usuario-paciente titular del claim username
+      description: Responde 181 (código enviado por WhatsApp) o 180 (por email). 170 si ya existe.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SignUpRequest'}
+      responses: {'200': {$ref: '#/components/responses/Envelope'}}
+  /security/login:
+    post:
+      tags: [Seguridad]
+      summary: Valida el código y abre la sesión del canal
+      description: Responde `{holder_patient_id}`. 120 código incorrecto · 130 código vencido (10 minutos).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, required: [token], properties: {token: {type: string, minLength: 6, maxLength: 6}}}
+      responses: {'200': {$ref: '#/components/responses/Envelope'}}
+  /security/logout:
+    post:
+      tags: [Seguridad]
+      summary: Cierra la sesión del canal
+      responses: {'200': {$ref: '#/components/responses/Envelope'}}
+
+  /institution:
+    get:
+      tags: [Institución]
+      summary: Datos de la institución del token
+      responses: {'200': {$ref: '#/components/responses/Envelope'}}
+  /institution/subsidiaries:
+    get:
+      tags: [Institución]
+      summary: Sedes
+      responses: {'200': {$ref: '#/components/responses/Envelope'}}
+  /institution/professionals/subsidiary/{subsidiary_id}:
+    get:
+      tags: [Institución]
+      summary: Profesionales de una sede (con specialty_id)
+      parameters:
+        - {name: subsidiary_id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: specialty_id, in: query, schema: {type: string, format: uuid}}
+        - {name: include_without_online, in: query, schema: {type: integer, enum: [0, 1]}}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties: {results: {type: array, items: {$ref: '#/components/schemas/Professional'}}}
+  /institution/social-security-plans:
+    get:
+      tags: [Institución]
+      summary: Planes federados aceptados en la institución (los que se mandan en free-turn-slots y turns)
+      responses: {'200': {$ref: '#/components/responses/Envelope'}}
+  /institution/social-security-plans/clinical:
+    get:
+      tags: [Institución]
+      summary: Planes de obra social de RAS Salud, con su plan federado si lo tienen
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties: {results: {type: array, items: {$ref: '#/components/schemas/ClinicalPlan'}}}
+  /institution/practices:
+    get:
+      tags: [Institución]
+      summary: Prácticas de RAS Salud con las sedes y profesionales publicados que las atienden
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties: {results: {type: array, items: {$ref: '#/components/schemas/Practice'}}}
+  /institution/practice-prices:
+    post:
+      tags: [Institución]
+      summary: Precio particular de una o varias prácticas
+      description: Por ahora solo precio particular; con un plan de obra social responde error de negocio.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PracticePricesRequest'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties: {results: {type: array, items: {$ref: '#/components/schemas/PracticePrice'}}}
+
+  /turns/free-turn-slots:
+    post:
+      tags: [Turnos]
+      summary: Agenda libre con filtro flexible (no exige sesión de paciente)
+      description: |
+        Al menos uno de professional_id, practice_id o especialidad (specialty_ids o specialty_id). Ventana desde hoy y
+        de hasta 14 días. Con varias especialidades trae las agendas de los profesionales que tengan cualquiera de
+        ellas (un profesional puede tener más de una).
+        También se puede buscar por prestación federada (`federated_practice_code`, 2.1): cada grupo devuelve el
+        `practice_id` de esa clínica con el que se reserva y el `detail` de la prestación.
+        Errores: 300 falta el filtro · 301 ventana inválida · 302 sede o profesional de otra institución ·
+        303 plan no aceptado · 304 más de 10 agendas (acotar por sede o profesional) · 305 agenda no disponible ·
+        306 la clínica no ofrece online esa prestación · 307 fecha de nacimiento inválida.
+        Una agenda que no respondió va en `errors` y marca `partial`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/FreeTurnSlotsRequest'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties: {results: {$ref: '#/components/schemas/FreeTurnSlotsResponse'}}
+  /turns:
+    post:
+      tags: [Turnos]
+      summary: Reserva un turno (uno por llamada) con la práctica de RAS Salud
+      description: |
+        Con claim username opera el titular con sesión (sin sesión: 150). Sin claim username opera el usuario de
+        integración del servicio (gestores). Si la institución tiene política, institution_policy_id es obligatorio.
+        Si la clínica rechaza la reserva (el profesional no realiza esa práctica en el horario, el horario no alcanza
+        para la duración de la práctica, el paciente no tiene reservas online en ese centro), responde success:false
+        con un message para mostrarle al paciente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SaveTurnRequest'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties: {results: {$ref: '#/components/schemas/Turn'}}
+  /turns/{turn_id}:
+    get:
+      tags: [Turnos]
+      summary: Un turno, con el estado actualizado contra la institución
+      parameters:
+        - {name: turn_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties: {results: {$ref: '#/components/schemas/Turn'}}
+  /turns/patient_id/{patient_id}:
+    get:
+      tags: [Turnos]
+      summary: Próximos turnos de un paciente del grupo del titular con sesión
+      parameters:
+        - {name: patient_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses: {'200': {$ref: '#/components/responses/Envelope'}}
+  /turns/patient_dni/{dni}:
+    get:
+      tags: [Turnos]
+      summary: Próximos turnos de un paciente del grupo del titular con sesión, por DNI
+      parameters:
+        - {name: dni, in: path, required: true, schema: {type: string}}
+      responses: {'200': {$ref: '#/components/responses/Envelope'}}
+  /turns/confirm-or-cancel:
+    post:
+      tags: [Turnos]
+      summary: Confirma o cancela un turno de la institución; el comment llega a la clínica
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [turn_id, method]
+              properties:
+                turn_id: {type: string, format: uuid}
+                method: {type: string, enum: [confirm, cancel]}
+                comment: {type: string, maxLength: 255}
+      responses: {'200': {$ref: '#/components/responses/Envelope'}}
+
+  /patients:
+    get:
+      tags: [Pacientes]
+      summary: Grupo familiar del titular con sesión
+      responses: {'200': {$ref: '#/components/responses/Envelope'}}
+  /patients/{patient_id}:
+    get:
+      tags: [Pacientes]
+      summary: Un paciente del grupo familiar
+      parameters:
+        - {name: patient_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses: {'200': {$ref: '#/components/responses/Envelope'}}
+  /patients/document_number/{dni}:
+    get:
+      tags: [Pacientes]
+      summary: Un paciente del grupo familiar por DNI (140 si no está)
+      parameters:
+        - {name: dni, in: path, required: true, schema: {type: string}}
+      responses: {'200': {$ref: '#/components/responses/Envelope'}}
+  /patients/add-kinship:
+    post:
+      tags: [Pacientes]
+      summary: Agrega un familiar al grupo del titular con sesión
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PatientCreateRequest'}
+      responses: {'200': {$ref: '#/components/responses/Envelope'}}
+
+  /patient:
+    get:
+      tags: [Gestores]
+      summary: Busca un afiliado por DNI (sin claim username, usuario de integración)
+      description: Respuesta mínima. 140 si no está.
+      parameters:
+        - {name: document_number, in: query, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties: {results: {$ref: '#/components/schemas/PatientLookup'}}
+  /patient/create:
+    post:
+      tags: [Gestores]
+      summary: Da de alta un afiliado (sin claim username, usuario de integración)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/PatientCreateRequest'
+                - required: [phone_number]
+      responses: {'200': {$ref: '#/components/responses/Envelope'}}
+
+  /notifications/get-turn-notifications-by-institution:
+    post:
+      tags: [Notificaciones]
+      summary: Recordatorios del día siguiente para el servicio NOTIFICATIONS
+      description: |
+        Marca como enviadas las notificaciones en borrador que devuelve: llamar una vez por día e institución.
+        `institution_subsidiary_id` acepta el id de MrTurno o el id externo de la sede.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                institution_subsidiary_id: {type: string, format: uuid}
+                notification_date: {type: string, format: date}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties: {results: {type: array, items: {$ref: '#/components/schemas/TurnNotification'}}}
+  /notifications/respond-notification:
+    post:
+      tags: [Notificaciones]
+      summary: Registra la respuesta del paciente a un recordatorio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [notification_id, method]
+              properties:
+                notification_id: {type: string, format: uuid}
+                method: {type: string, enum: [confirm, cancel, spam]}
+                comment: {type: string, maxLength: 255}
+      responses: {'200': {$ref: '#/components/responses/Envelope'}}
+
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+  responses:
+    Envelope:
+      description: Envelope estándar
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Envelope'}
+  schemas:
+    Envelope:
+      type: object
+      properties:
+        success: {type: boolean}
+        message: {type: string}
+        count: {type: integer}
+        results: {}
+        code:
+          type: integer
+          nullable: true
+          description: |
+            0 error de negocio · 10 sesión válida · 100 usuario inexistente · 110/111 código enviado · 120 código
+            incorrecto · 130 código vencido · 140 paciente inexistente · 150 sin sesión · 170 usuario existente ·
+            180/181 usuario creado · 300–307 errores de la agenda (ver free-turn-slots) · 401/429 HTTP
+    SignUpRequest:
+      type: object
+      required: [first_name, last_name, document_number, gender, birthdate]
+      properties:
+        first_name: {type: string}
+        last_name: {type: string}
+        document_number: {type: string}
+        gender: {type: integer, enum: [0, 10, 20], description: '0 Otro, 10 Masculino, 20 Femenino'}
+        birthdate: {type: string, format: date}
+        email: {type: string}
+        social_security_plan_id: {type: string, format: uuid}
+        affiliate_number: {type: string}
+    Professional:
+      type: object
+      properties:
+        professional_id: {type: string, format: uuid}
+        first_name: {type: string}
+        last_name: {type: string}
+        enrolment_number: {type: string}
+        specialty_id: {type: string, format: uuid}
+        specialty_name: {type: string}
+        calendar_description: {type: string}
+        professional_patient_comment: {type: string}
+        has_turn_online_enabled: {type: boolean}
+    ClinicalPlan:
+      type: object
+      properties:
+        clinical_plan_id: {type: string}
+        plan_name: {type: string}
+        social_security_id: {type: string}
+        social_security_name: {type: string}
+        type: {type: integer, description: '1 Obra social, 2 ART, 3 Empresa, 4 Particular, 5 Gerenciadora'}
+        type_name: {type: string}
+        is_particular: {type: boolean}
+        is_active: {type: boolean}
+        social_security_plan_id: {type: string, format: uuid, nullable: true, description: 'Plan federado de MrTurno; null si no está federado'}
+    Practice:
+      type: object
+      properties:
+        practice_id: {type: string, description: 'Id de la práctica EN ESTA CLÍNICA (no es global: cada clínica tiene el suyo). Es el que se manda en la agenda, la reserva y los precios.'}
+        code: {type: string, description: 'Código interno de la clínica (nomenclador o código propio). Para conciliar; NO se le muestra al paciente.'}
+        name: {type: string}
+        is_active: {type: boolean}
+        subsidiaries:
+          type: array
+          items:
+            type: object
+            properties:
+              institution_subsidiary_id: {type: string, format: uuid}
+              professionals:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    professional_id: {type: string, format: uuid}
+                    specialty_id: {type: string, format: uuid, description: 'Especialidad principal del profesional en esa sede'}
+                    specialty_ids:
+                      type: array
+                      items: {type: string, format: uuid}
+                      description: 'Todas las especialidades del profesional en esa sede (multiespecialidad), la principal primero. Cualquiera sirve para specialty_ids de la agenda.'
+        non_federated_count: {type: integer, description: 'Agendas que atienden la práctica y no están publicadas en MrTurno'}
+        federated_practices:
+          type: array
+          description: '2.1. Prestaciones federadas que la práctica cubre por turnos online. Vacío si la clínica todavía no las habilitó.'
+          items: {$ref: '#/components/schemas/FederatedPractice'}
+    FederatedPractice:
+      type: object
+      properties:
+        federated_practice_code: {type: string, example: RAS-IMG-0003, description: 'Código común a todas las clínicas de RAS'}
+        patient_name: {type: string, example: 'Placa de muñeca', description: 'Nombre para mostrarle al paciente'}
+        terms:
+          type: array
+          items: {type: string}
+          example: ['placa de muñeca', 'rayos de la muñeca']
+          description: 'Cómo lo dice el paciente; sirve para entender el pedido'
+        visit_type: {type: string, nullable: true, enum: [PRIMERA_VEZ, SEGUIMIENTO], description: 'Solo en consultas'}
+        detail: {type: string, nullable: true, example: 'Región: muñeca'}
+    PracticePricesRequest:
+      type: object
+      required: [practice_ids]
+      properties:
+        practice_ids: {type: array, maxItems: 20, items: {type: string}, description: 'practice_id de esta clínica'}
+        clinical_plan_id: {type: string, nullable: true}
+        professional_id: {type: string, format: uuid}
+        date: {type: string, format: date}
+    PracticePrice:
+      type: object
+      properties:
+        practice_id: {type: string}
+        code: {type: string, nullable: true, description: 'Código interno de la clínica; NO se le muestra al paciente'}
+        name: {type: string, nullable: true}
+        kind: {type: string, enum: [PARTICULAR, COINSURANCE]}
+        patient_amount: {type: number, nullable: true, description: 'Lo que paga el paciente. Nunca el valor que paga la obra social.'}
+        vat_rate: {type: number, nullable: true}
+        patient_amount_with_vat: {type: number, nullable: true}
+        currency: {type: string, example: ARS}
+        valid_until: {type: string, format: date, nullable: true}
+        reason: {type: string, nullable: true}
+    FreeTurnSlotsRequest:
+      type: object
+      required: [social_security_plan_id, start_date, end_date]
+      properties:
+        institution_subsidiary_id: {type: string, format: uuid}
+        professional_id: {type: string, format: uuid}
+        practice_id: {type: string, description: 'practice_id de esta clínica (GET /institution/practices)'}
+        specialty_ids:
+          type: array
+          maxItems: 20
+          items: {type: string, format: uuid}
+          description: 'Especialidades de MrTurno. Trae a los profesionales que tengan cualquiera de ellas.'
+        specialty_id: {type: string, format: uuid, description: 'Alias de specialty_ids con una sola. Si vienen los dos, se suman.'}
+        social_security_plan_id: {type: string, format: uuid}
+        start_date: {type: string, format: date}
+        end_date: {type: string, format: date}
+        federated_practice_code: {type: string, maxLength: 20, description: '2.1. Prestación federada (de GET /institution/practices). practice_id le gana si vienen los dos.'}
+        visit_type: {type: string, enum: [PRIMERA_VEZ, SEGUIMIENTO], description: '2.1. Solo para consultas federadas.'}
+        patient_birthdate: {type: string, format: date, description: '2.1. Sin sesión: la clínica evalúa las reglas por edad con esta fecha.'}
+    FreeTurnSlotsResponse:
+      type: object
+      properties:
+        groups: {type: array, items: {$ref: '#/components/schemas/FreeTurnSlotsGroup'}}
+        partial: {type: boolean}
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              institution_subsidiary_id: {type: string, nullable: true}
+              professional_id: {type: string, nullable: true}
+              code: {type: integer}
+              message: {type: string}
+    FreeTurnSlotsGroup:
+      type: object
+      properties:
+        institution_subsidiary_id: {type: string, format: uuid}
+        professional_id: {type: string, format: uuid}
+        specialty_id: {type: string, format: uuid, description: 'Con filtro de especialidad, la pedida que tiene el profesional (la principal si está entre las pedidas); sin filtro, la principal'}
+        social_security_plan_id: {type: string, format: uuid}
+        comment_to_patient: {type: string}
+        institution_policy_id: {type: string}
+        institution_policy_url: {type: string}
+        require_institution_policy_flag: {type: boolean}
+        practice_id: {type: string, nullable: true, description: '2.1. practice_id de esta clínica con el que se reserva en este grupo (el que resolvió federated_practice_code, o el pedido)'}
+        federated_practice_code: {type: string, nullable: true, description: '2.1. Solo al buscar por prestación'}
+        visit_type: {type: string, nullable: true}
+        detail: {type: string, nullable: true, example: 'Región: muñeca'}
+        patient_messages:
+          type: array
+          items: {type: string}
+          description: '2.1. Indicaciones aprobadas por la clínica para el paciente. Mostralas antes de reservar.'
+        free_turn_slot_dtos: {type: array, items: {$ref: '#/components/schemas/FreeTurnSlot'}}
+    FreeTurnSlot:
+      type: object
+      properties:
+        slot_id: {type: string}
+        slot_iso_date: {type: string, format: date}
+        slot_date: {type: string, description: 'Etiqueta del día'}
+        slot_hour: {type: string}
+        slot_minutes_duration: {type: integer}
+        slot_modality: {type: string}
+        slot_description: {type: string}
+    SaveTurnRequest:
+      type: object
+      required: [institution_subsidiary_id, professional_id, social_security_plan_id, patient_id, affiliate_number, free_turn_slot_id, turn_comment, accept_institution_policy_flag]
+      properties:
+        institution_subsidiary_id: {type: string, format: uuid}
+        professional_id: {type: string, format: uuid}
+        practice_id: {type: string, description: 'practice_id de esta clínica que se reserva (el mismo de la agenda)'}
+        social_security_plan_id: {type: string, format: uuid}
+        patient_id: {type: string, format: uuid}
+        affiliate_number: {type: string}
+        free_turn_slot_id: {type: string}
+        turn_date: {type: string, format: date}
+        turn_comment: {type: string, maxLength: 255}
+        institution_policy_id: {type: string}
+        accept_institution_policy_flag: {type: boolean}
+    Turn:
+      type: object
+      properties:
+        turn_id: {type: string, format: uuid}
+        institution_subidiary_id: {type: string, format: uuid}
+        professional_id: {type: string, format: uuid}
+        patient_id: {type: string, format: uuid}
+        social_security_plan_id: {type: string, format: uuid}
+        practice_id: {type: string, nullable: true, description: 'practice_id de esta clínica reservado'}
+        institution_name: {type: string}
+        institution_subsidiary_name: {type: string}
+        institution_subsidiary_address: {type: string}
+        institution_subsidiary_phone_number: {type: string}
+        professional_first_name: {type: string}
+        professional_last_name: {type: string}
+        professional_specialty_name: {type: string}
+        professional_enrolment_number: {type: string}
+        patient_first_name: {type: string}
+        patient_last_name: {type: string}
+        patient_document_number: {type: string}
+        social_security_plan_name: {type: string}
+        turn_date: {type: string}
+        turn_hour: {type: string}
+        turn_status_description: {type: string}
+        turn_comment: {type: string}
+    PatientCreateRequest:
+      type: object
+      required: [first_name, last_name, document_number, gender, birthdate, social_security_plan_id, affiliate_number]
+      properties:
+        first_name: {type: string, maxLength: 50}
+        last_name: {type: string, maxLength: 50}
+        document_number: {type: integer}
+        gender: {type: integer, enum: [0, 10, 20]}
+        birthdate: {type: string, format: date}
+        phone_number: {type: string}
+        kinship_type: {type: integer, default: 0}
+        social_security_plan_id: {type: string, format: uuid}
+        affiliate_number: {type: string}
+    PatientLookup:
+      type: object
+      properties:
+        exists: {type: boolean}
+        patient_id: {type: string, format: uuid}
+        first_name_initial: {type: string}
+    TurnNotification:
+      type: object
+      properties:
+        id: {type: string, format: uuid, description: 'notification_id'}
+        turn_id: {type: string, format: uuid, nullable: true}
+        patient_id: {type: string, format: uuid, nullable: true}
+        patient_first_name: {type: string}
+        patient_last_name: {type: string}
+        patient_phone_number: {type: string}
+        professional_first_name: {type: string}
+        professional_last_name: {type: string}
+        professional_specialty_name: {type: string}
+        turn_date: {type: string}
+        turn_hour: {type: string}
+        turn_comment_to_patient: {type: string, nullable: true}
+        subsidiary_name: {type: string}
+        subsidiary_address: {type: string}
+        confirm_url: {type: string}
+        cancel_url: {type: string}
+        institution_url: {type: string}
+        footer: {type: string}
