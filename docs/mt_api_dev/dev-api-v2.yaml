@@ -226,6 +226,13 @@ paths:
         Si la clínica rechaza la reserva (el profesional no realiza esa práctica en el horario, el horario no alcanza
         para la duración de la práctica, el paciente no tiene reservas online en ese centro), responde success:false
         con un message para mostrarle al paciente.
+
+        Reprogramar: con replaces_turn_id (turn_id de un turno futuro, pendiente o confirmado, del mismo patient_id)
+        el turno nuevo se reserva y, sólo si salió bien, el anterior se cancela. Sirve en el mismo día con el mismo
+        profesional (el anterior no cuenta para el tope de 1 por día). replaces_turn_id inválido: 311 (o 1110/1111/1530
+        si lo rechaza la clínica) y no se reserva nada. La respuesta suma replaced_turn_id y replaced; con
+        replaced:false el turno nuevo quedó reservado pero el anterior sigue activo (replace_error dice por qué):
+        cancelarlo con confirm-or-cancel.
       requestBody:
         required: true
         content:
@@ -244,6 +251,9 @@ paths:
     get:
       tags: [Turnos]
       summary: Un turno, con el estado actualizado contra la institución
+      description: |
+        Con claim username, un turno de un paciente del grupo del titular. Sin claim username (gestores), un turno de
+        un afiliado del servicio. Un turno de otro paciente responde code 309: consultalo con el username del titular.
       parameters:
         - {name: turn_id, in: path, required: true, schema: {type: string, format: uuid}}
       responses:
@@ -255,17 +265,80 @@ paths:
                 allOf:
                   - $ref: '#/components/schemas/Envelope'
                   - properties: {results: {$ref: '#/components/schemas/Turn'}}
+  /turns/{turn_id}/attachments:
+    post:
+      tags: [Turnos]
+      summary: Adjuntos para un turno ya reservado (orden médica, autorización, credencial)
+      parameters:
+        - {name: turn_id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [attachments]
+              properties:
+                attachments:
+                  type: array
+                  maxItems: 5
+                  items: {$ref: '#/components/schemas/AttachmentUpload'}
+      responses:
+        '200':
+          description: OK (308 si un adjunto no es válido)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      results:
+                        type: object
+                        properties:
+                          attachments:
+                            type: array
+                            items: {$ref: '#/components/schemas/AttachmentResult'}
+  /turns/upcoming:
+    get:
+      tags: [Turnos]
+      summary: Turnos próximos del titular y su grupo familiar, de cualquier canal (también los del mostrador)
+      description: |
+        Turnos desde hoy, pendientes o confirmados, del titular con sesión y de su grupo familiar en la institución del
+        token, sacados por cualquier canal (Mr. Turno, bots, mostrador, teléfono). Hasta 50, por fecha y hora.
+        Exige el claim `username` (sesión del titular): sin él responde `code 312`. Si la institución no puede
+        devolver sus turnos responde `code 313`.
+
+        Un turno sacado en la clínica queda registrado en Mr. Turno la primera vez que aparece acá, con un `turn_id`
+        fijo que sirve en `GET /turns/{turn_id}`, `POST /turns/confirm-or-cancel` y `POST /turns/{turn_id}/attachments`.
+
+        Privacidad: los turnos del titular van completos. Los de un familiar van completos sólo si el teléfono del
+        familiar en la clínica coincide con el del titular (últimos 10 dígitos) o si el familiar ya tiene turnos
+        sacados en Mr. Turno desde esta cuenta; si no, van con datos mínimos (fecha, hora, sede y paciente, sin
+        `turn_id`, profesional, práctica, plan ni estado), `manageable: false` y
+        `unmanageable_reason: family_not_verified`.
+
+        `GET /turns/patient_id/{patient_id}` y `GET /turns/patient_dni/{dni}` siguen mostrando sólo los turnos
+        sacados por Mr. Turno.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties: {results: {type: array, items: {$ref: '#/components/schemas/UpcomingTurn'}}}
   /turns/patient_id/{patient_id}:
     get:
       tags: [Turnos]
-      summary: Próximos turnos de un paciente del grupo del titular con sesión
+      summary: Próximos turnos de un paciente del grupo del titular con sesión (sólo los sacados por Mr. Turno)
       parameters:
         - {name: patient_id, in: path, required: true, schema: {type: string, format: uuid}}
       responses: {'200': {$ref: '#/components/responses/Envelope'}}
   /turns/patient_dni/{dni}:
     get:
       tags: [Turnos]
-      summary: Próximos turnos de un paciente del grupo del titular con sesión, por DNI
+      summary: Próximos turnos de un paciente del grupo del titular con sesión, por DNI (sólo los sacados por Mr. Turno)
       parameters:
         - {name: dni, in: path, required: true, schema: {type: string}}
       responses: {'200': {$ref: '#/components/responses/Envelope'}}
@@ -283,7 +356,7 @@ paths:
               properties:
                 turn_id: {type: string, format: uuid}
                 method: {type: string, enum: [confirm, cancel]}
-                comment: {type: string, maxLength: 255}
+                comment: {type: string, maxLength: 255, description: 'Opcional. La clínica lo ve en el historial del turno («Turno confirmado desde MrTurno. Comentario: …» / «Turno cancelado desde MrTurno. Motivo: …»)'}
       responses: {'200': {$ref: '#/components/responses/Envelope'}}
 
   /patients:
@@ -384,7 +457,7 @@ paths:
               properties:
                 notification_id: {type: string, format: uuid}
                 method: {type: string, enum: [confirm, cancel, spam]}
-                comment: {type: string, maxLength: 255}
+                comment: {type: string, maxLength: 255, description: 'Opcional. La clínica lo ve en el historial del turno («Turno confirmado desde MrTurno. Comentario: …» / «Turno cancelado desde MrTurno. Motivo: …»)'}
       responses: {'200': {$ref: '#/components/responses/Envelope'}}
 
 components:
@@ -410,7 +483,10 @@ components:
           description: |
             0 error de negocio · 10 sesión válida · 100 usuario inexistente · 110/111 código enviado · 120 código
             incorrecto · 130 código vencido · 140 paciente inexistente · 150 sin sesión · 170 usuario existente ·
-            180/181 usuario creado · 300–307 errores de la agenda (ver free-turn-slots) · 401/429 HTTP
+            180/181 usuario creado · 300–307 errores de la agenda (ver free-turn-slots) · 308 adjunto inválido ·
+            309 turno de un paciente que no está en el grupo de quien consulta ·
+            311 replaces_turn_id inválido · 312 el endpoint exige la sesión del paciente (username) · 313 la clínica no
+            pudo devolver sus turnos · 1110/1111/1530 la clínica rechazó el turno a reprogramar · 401/429 HTTP
     SignUpRequest:
       type: object
       required: [first_name, last_name, document_number, gender, birthdate]
@@ -435,6 +511,8 @@ components:
         calendar_description: {type: string}
         professional_patient_comment: {type: string}
         has_turn_online_enabled: {type: boolean}
+        kind: {type: string, enum: [person, equipment], description: 'equipment = equipo de imágenes (mamógrafo, rayos, resonancia): viene sin last_name ni enrolment_number. Aditivo (E4a).'}
+        display_name: {type: string, description: 'Rótulo para mostrar: "Pérez, Juan" o, para un equipo, "Mamografia - Dr. Migliaro Oscar" (equipo + responsable). Aditivo (E4a).'}
     ClinicalPlan:
       type: object
       properties:
@@ -587,6 +665,32 @@ components:
         turn_comment: {type: string, maxLength: 255}
         institution_policy_id: {type: string}
         accept_institution_policy_flag: {type: boolean}
+        replaces_turn_id: {type: string, format: uuid, description: 'Reprogramar: turn_id del turno del mismo paciente que esta reserva reemplaza. Se cancela sólo si la reserva nueva sale bien.'}
+        attachments:
+          type: array
+          maxItems: 5
+          description: Opcional. Se validan antes de reservar (308 si alguno está mal).
+          items: {$ref: '#/components/schemas/AttachmentUpload'}
+    AttachmentUpload:
+      type: object
+      required: [type, content_base64]
+      properties:
+        type: {type: string, enum: [medical_order, authorization, credential, other]}
+        content_base64: {type: string, description: 'JPG, PNG o PDF en base64 (acepta el prefijo data:<tipo>;base64,); hasta 5 MB decodificado'}
+        file_name: {type: string, description: 'Opcional: cómo lo ve la clínica'}
+    AttachmentResult:
+      type: object
+      properties:
+        type: {type: string}
+        file_name: {type: string}
+        sent: {type: boolean, description: 'false = quedó guardado en MrTurno pero la clínica no confirmó haberlo recibido'}
+    TurnAttachment:
+      type: object
+      properties:
+        type: {type: string, enum: [medical_order, authorization, credential, other]}
+        file_name: {type: string}
+        sent: {type: boolean, description: 'false = quedó guardado en MrTurno pero la clínica no confirmó haberlo recibido'}
+        uploaded_at: {type: string, example: '2026-11-06 10:15:00', description: 'Hora de Argentina'}
     Turn:
       type: object
       properties:
@@ -604,6 +708,8 @@ components:
         professional_last_name: {type: string}
         professional_specialty_name: {type: string}
         professional_enrolment_number: {type: string}
+        professional_kind: {type: string, enum: [person, equipment], description: 'Aditivo (E4a): equipment = equipo de imágenes, sin apellido ni matrícula.'}
+        professional_display_name: {type: string, description: 'Aditivo (E4a): "Pérez, Juan" o "Mamografia - Dr. Migliaro Oscar".'}
         patient_first_name: {type: string}
         patient_last_name: {type: string}
         patient_document_number: {type: string}
@@ -612,6 +718,38 @@ components:
         turn_hour: {type: string}
         turn_status_description: {type: string}
         turn_comment: {type: string}
+        attachments:
+          type: array
+          nullable: true
+          description: |
+            En GET /turns/{turn_id}: todo lo que el integrador subió al turno ({type, file_name, sent, uploaded_at}),
+            lista vacía si no hay; sólo metadatos, sin contenido ni URL. En la reserva: el resultado de los adjuntos de
+            ese pedido ({type, file_name, sent}), null si no mandó.
+          items: {$ref: '#/components/schemas/TurnAttachment'}
+        replaced_turn_id: {type: string, format: uuid, nullable: true, description: 'Sólo al reservar con replaces_turn_id: el turno reemplazado'}
+        replaced: {type: boolean, nullable: true, description: 'Sólo al reservar con replaces_turn_id. true: el anterior quedó cancelado. false: el nuevo quedó reservado pero el anterior sigue activo'}
+        replace_error: {type: string, nullable: true, description: 'Sólo con replaced:false: por qué no se canceló el anterior'}
+    UpcomingTurn:
+      description: |
+        Turno de `GET /turns/upcoming`: los campos de `Turn` más origen y si se puede gestionar. Con
+        `manageable: false` sólo vienen fecha, hora, sede y paciente; el resto (turn_id, profesional, práctica, plan,
+        estado) viene null.
+      allOf:
+        - $ref: '#/components/schemas/Turn'
+        - type: object
+          properties:
+            origin: {type: string, enum: [mrturno, center], description: 'mrturno = reservado en Mr. Turno (web, App o bots); center = sacado en la clínica'}
+            manageable: {type: boolean, description: 'true: turn_id sirve para GET /turns/{turn_id}, confirm-or-cancel y adjuntos. false: derivar a la clínica'}
+            unmanageable_reason: {type: string, nullable: true, enum: [family_not_verified, not_in_mrturno], description: 'family_not_verified = familiar no vinculado con el titular; not_in_mrturno = la clínica no publica en Mr. Turno esa sede o ese profesional'}
+            practices:
+              type: array
+              nullable: true
+              items:
+                type: object
+                properties:
+                  practice_id: {type: string, description: 'practice_id de esta clínica'}
+                  code: {type: string, nullable: true}
+                  name: {type: string, nullable: true}
     PatientCreateRequest:
       type: object
       required: [first_name, last_name, document_number, gender, birthdate, social_security_plan_id, affiliate_number]
