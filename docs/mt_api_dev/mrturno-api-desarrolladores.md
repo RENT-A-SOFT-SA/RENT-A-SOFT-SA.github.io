@@ -104,14 +104,14 @@ Accept: application/json
 | Code | OK | Mensaje (resumen)                                               | Acción sugerida                        |
 |-----:|:-------:|------------------------------------------------------------------|----------------------------------------|
 |   10 |  true   | Usuario y sesión válidos                                         | —                                      |
-|  100 |  false  | Usuario no encontrado                                            | `security/sign-up`                     |
+|  100 |  false  | No hay una cuenta de MrTurno con ese teléfono o email            | `security/sign-up` (si el paciente ya tiene cuenta con su email, el sign-up con ese email asocia el teléfono: código 160) |
 |  110 |  false  | Sesión no iniciada. Código de verificación enviado por **email** | `security/login`                       |
 |  111 |  false  | Sesión no iniciada. Código de verificación enviado por **Whatsapp**   | `security/login`                       |
 |  120 |  false  | Código de verificación incorrecto                                | Reintentar `security/login`            |
 |  130 |  false  | Token expirado                                                   | Reemitir JWT                           |
-|  140 |  false  | Paciente inexistente                                             | Crear/Asociar paciente                 |
+|  140 |  false  | El paciente no está en el grupo familiar de la cuenta (en las búsquedas por DNI o id) / Paciente inexistente | `patients/add-kinship`                 |
 |  150 |  false  | Sesión no iniciada                                               | `security/login`                       |
-|  160 |  false  | Email ya utilizado                                               | `security/login` / asociar teléfono    |
+|  160 |  false  | El paciente ya tiene cuenta con ese email: se envió el mail para asociar el teléfono | Pedirle al paciente que abra el link del mail y después `security/login` con el código que le llega por Whatsapp |
 |  170 |  false  | Usuario ya existe                                                | `security/login`                       |
 |  180 |  true   | Usuario creado, código enviado por **email**                     | `security/login`                       |
 |  181 |  true   | Usuario creado, código enviado por **Whatsapp**                       | `security/login`                       |
@@ -119,7 +119,27 @@ Accept: application/json
 |  200 |  true   | No posee turnos pendientes emitidos por este medio               | —                                      |
 |  210 |  false  | Email en blacklist                                               | Contactar soporte                      |
 
-> Los endpoints también retornan **HTTP 200** con `success=false` en ciertos casos lógicos. Use **`code`** para el manejo fino de errores.
+> Los endpoints también retornan **HTTP 200** con `success=false` en ciertos casos lógicos. Use **`code`** para el manejo fino de errores: el texto de `message` puede cambiar, el código no.
+
+Textos actuales de los códigos que más aparecen:
+
+| Code | `message` |
+|-----:|-----------|
+|  100 | No hay una cuenta de MrTurno con ese teléfono o email. Si el paciente ya tiene cuenta con su email, el sign-up con ese email le asocia el teléfono; si no, registralo con sign-up. |
+|  140 | El paciente no está en el grupo familiar de esta cuenta. Agregalo con add-kinship. *(en `patients/{id}`, `patients/document_number/{dni}` y los turnos por paciente)* |
+|  140 | Paciente no encontrado *(otros casos)* |
+|  160 | El email indicado ya fue utilizado, revisa tu casilla de email para verificar |
+
+### Errores de autenticación (HTTP 401)
+
+| `message` | Causa |
+|-----------|-------|
+| El username del token no es un teléfono con código de país ni un email válido. | El claim `username` (el paciente) no tiene formato de teléfono ni de email, por ejemplo un DNI o un teléfono sin código de país. **No es un problema de la credencial del integrador**: depende del paciente. |
+| Credenciales inválidas o usuario sin permisos para API-DEV. | La clave que firmó el token no tiene un usuario desarrollador asociado. |
+| Token JWT expirado (exp vencido)… / (iat fuera de ventana)… | El token superó su vigencia (5 minutos). Reemitir el JWT. |
+| Token JWT fuera de ventana temporal válida (iat/nbf). | `iat` o `nbf` todavía no son válidos (revisar el reloj del servidor). |
+| Token JWT inválido o mal formado. | Firma, issuer o formato del token. |
+| Falta el header Authorization con esquema Bearer. | No se envió el header. |
 
 ---
 
@@ -282,6 +302,8 @@ curl -sS -X POST "${API_URL}/dev/security/ping" \
 ```
 **Errores:** 100, 120, 130, 190.
 
+**Vigencia del código:** 10 minutos desde que se envía. Conviene avisarle al paciente que lo mande enseguida; si vence, `security/prelogin` envía uno nuevo.
+
 ---
 
 #### `POST /security/logout`
@@ -312,7 +334,9 @@ curl -sS -X POST "${API_URL}/dev/security/ping" \
 ---
 
 #### `POST /security/sign-up`
-**Descripción:** Alta de **usuario-paciente titular**. Si ya existe por email pero falta asociar el teléfono del JWT, se realiza la asociación. Luego se debe llamar a **`/security/login`**.  
+**Descripción:** Alta de **usuario-paciente titular**. Luego se debe llamar a **`/security/login`**.  
+
+**Paciente que ya tiene cuenta con su email** (se registró en la web o en la App y ahora entra con el teléfono): si el `username` del JWT es un teléfono y el `email` del body es el de una cuenta existente **del mismo paciente** (mismo nombre, apellido y DNI) con el email validado, el sign-up no crea otra cuenta: inicia la asociación del teléfono y responde el **código 160**. Le llega un mail a la cuenta con un link; al abrirlo, el paciente recibe un código por Whatsapp, que se usa en `POST /security/login` con el teléfono en el JWT. Desde ahí el paciente opera con el teléfono sobre su misma cuenta y su grupo familiar. Si los datos no coinciden con los de la cuenta, o el email no está validado, la respuesta es *"El email ingresado ya fue utilizado"*. El mismo circuito se puede iniciar con `POST /security/associate-to-account`.  
 **Body (ejemplo):**
 ```json
 {
@@ -505,7 +529,11 @@ curl -sS -X GET "${API_URL}/dev/institution/professionals/subsidiary/{subsidiary
 ---
 
 #### `POST /patients/add-kinship`
-**Descripción:** Agrega un familiar al grupo del usuario titular.  
+**Descripción:** Agrega un familiar al grupo del usuario titular. Es la forma de vincular a un paciente que no está en el grupo familiar de la cuenta (código 140 en las búsquedas).  
+
+- `affiliate_number`: obligatorio, salvo que `social_security_plan_id` sea el plan **PARTICULAR**: en ese caso se puede omitir y se guarda el DNI del familiar.
+- `affiliate_type`: opcional.
+
 **Body:**
 ```json
 {
