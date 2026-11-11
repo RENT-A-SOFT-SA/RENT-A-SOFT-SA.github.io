@@ -25,6 +25,8 @@ Esta documentación describe la API-DEV de **MrTurno 5** orientada a desarrollad
 
 > Todas las rutas documentadas asumen un prefijo `{API_URL}/dev/` (reemplazar por el ambiente correspondiente).
 
+**Teléfonos de prueba (solo Alpha).** Para probar sin un celular real, en Alpha estos teléfonos reciben siempre el código de verificación **`246810`** y no se les manda Whatsapp: `+5499990000001`, `+5499990000002`, `+5499990000003`, `+5499990000004` y `+5499990000005`. Sirven para `security/sign-up`, `security/prelogin` + `security/login` y la asociación del teléfono a una cuenta existente (el código que llega después de abrir el link del mail). Los comparten todos los integradores: si uno ya tiene cuenta, usá otro. En Producción no existen.
+
 ---
 
 ## Autenticación y autorización (JWT RS256)
