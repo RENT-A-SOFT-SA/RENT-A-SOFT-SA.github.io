@@ -146,13 +146,21 @@ Authorization: Bearer <YOUR_API_TOKEN>
 }
 ```
 
-**Errores comunes**
+**Errores**
 
-- `400 Bad Request`: fecha con formato inválido, JSON malformado.
-- `401 Unauthorized`: token inválido o expirado.
-- `403 Forbidden`: servicio sin permisos para la institución/sucursal.
-- `404 Not Found`: no existen notificaciones para los filtros indicados.
-- `429 Too Many Requests`: límite de tasa excedido.
+Los errores de negocio vuelven con **HTTP 200** y `success: false`, con el motivo en `message`. Revisá siempre `success`, no sólo el código HTTP. Los más frecuentes:
+
+- `No se han encontrado notificaciones`: no hay recordatorios para enviar en esa fecha. No es una falla: no hay nada que mandar.
+- `No se han encontrado notificaciones válidas`: había recordatorios, pero ninguno con un celular utilizable (esos quedan descartados).
+- `No se encuentra un access point asociado` o `No se ha encontrado un access point para la institucion`: el servicio no está habilitado para esa institución.
+- `No tiene acceso a ese servicio en la institucion`: la clave del token no está vinculada a esa institución.
+- `No se encuentra la sucursal` o `La sucursal indicada no pertenece a la institución`: revisá `institution_subsidiary_id`.
+- Errores de validación de `notification_date` (formato `YYYY-MM-DD`) o de `institution_subsidiary_id`.
+
+Códigos HTTP distintos de 200:
+
+- `401 Unauthorized`: token ausente, vencido o con una firma que no corresponde a la clave registrada.
+- `429 Too Many Requests`: se superó el límite diario de requests para el par servicio-institución.
 - `500 Internal Server Error`: error inesperado del servidor.
 
 ---
@@ -198,67 +206,19 @@ Authorization: Bearer <YOUR_API_TOKEN>
 }
 ```
 
-**Errores comunes**
+**Errores**
 
-- `400 Bad Request`: `notification_id` ausente o método inválido.
-- `401 Unauthorized`: token inválido o expirado.
-- `404 Not Found`: `notification_id` inexistente o no asociado al servicio.
-- `409 Conflict`: la notificación ya fue respondida con un estado final.
-- `422 Unprocessable Entity`: comentario excede longitud o caracteres inválidos.
-- `500 Internal Server Error`.
+Igual que en el endpoint anterior, los errores de negocio vuelven con **HTTP 200** y `success: false`, con el motivo en `message`:
 
----
+- `No se encuentra la notificación`: el `notification_id` no existe o no pertenece a tu servicio y a la institución del token.
+- `La fecha y hora del turno ya ha pasado. No es posible confirmar o cancelar un turno anterior a la fecha actual.`
+- `No se encuentra el turno en RAS Salud`: el turno ya no existe en el sistema del centro.
+- Rechazos del sistema del centro, con su propio mensaje: por ejemplo, cancelar un turno ya confirmado cuando el centro no lo permite.
+- Errores de validación: `notification_id` o `method` ausentes, `method` distinto de `confirm`, `cancel` o `spam`, o `comment` de más de 255 caracteres.
 
-### `POST /dev/notifications/{notification_id}`
+Confirmar un turno que ya estaba confirmado no es un error: la respuesta es exitosa.
 
-Método **directo** para confirmar o cancelar un turno específico por su ID de notificación.
-
-**Headers**
-
-```
-Content-Type: application/json
-Authorization: Bearer <YOUR_API_TOKEN>
-```
-
-**URL Parameters**
-- `notification_id` *(obligatorio)*: ID de la notificación obtenido del endpoint de listado.
-
-**Body (JSON)**
-
-```json
-{
-  "action": "confirm",
-  "comment": "Confirmación directa desde sistema externo"
-}
-```
-
-**Campos**
-- `action` *(obligatorio)*: `confirm` | `cancel`.
-- `comment` *(opcional)*: Texto libre (máx. 255).
-
-**Response (200)**
-
-```json
-{
-  "success": true,
-  "code": 200,
-  "message": "OK",
-  "count": 1,
-  "results": {
-    "action_taken": "confirm",
-    "notification_id": "notification-uuid-123",
-    "timestamp": "2025-11-13T14:30:00Z"
-  }
-}
-```
-
-**Errores comunes**
-
-- `400 Bad Request`: acción inválida o parámetros malformados.
-- `401 Unauthorized`: token inválido o expirado.
-- `404 Not Found`: `notification_id` inexistente.
-- `409 Conflict`: la notificación ya fue procesada.
-- `500 Internal Server Error`.
+Códigos HTTP distintos de 200: `401 Unauthorized`, `429 Too Many Requests` y `500 Internal Server Error`, como en el endpoint anterior.
 
 ---
 
@@ -276,9 +236,10 @@ Authorization: Bearer <YOUR_API_TOKEN>
 ## Buenas prácticas de integración
 
 ### Manejo de errores y reintentos
+- Revisá `success` en cada respuesta: los errores de negocio vuelven con HTTP 200 y `success: false`.
 - Implementá **backoff exponencial** para reintentos en errores `5xx`.
-- Respetá el encabezado `Retry-After` en respuestas `429`.
-- Logeá errores `4xx` para auditoría, pero no los reintentes automáticamente.
+- Ante un `429`, no reintentes en el día: el límite es diario por servicio e institución.
+- Logeá las respuestas con `success: false` para auditoría, pero no las reintentes automáticamente.
 
 ### Optimización de rendimiento
 - Realizá llamadas a `get-turn-notifications-by-institution` **una vez por día** y por institución.
